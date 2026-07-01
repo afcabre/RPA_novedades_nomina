@@ -1,0 +1,1 @@
+[BKLG-001] Se establecerá un archivo JSON de configuración para el flujo. Durante la instalación se deberá definir la ruta de trabajo, donde el proceso podrá encontrar los archivos fuente y, si es necesario, dónde registrar logs y generar archivos de salida.
