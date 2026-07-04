@@ -1,17 +1,17 @@
 # SF_Init
 
-Documento base del subflujo `SF_Init` para el RPA de registro de novedades en aplicativo de nomina. Este documento define la propuesta inicial de estructura y comportamiento del subflujo. Puede ajustarse durante la implementacion, pero sirve como linea base para mantener claridad sobre el objetivo y el diseno esperado.
+Documento base del subflujo `SF_Init` para el RPA de registro de novedades en aplicativo de nomina. Este documento define la propuesta inicial de estructura y comportamiento del subflujo. Puede ajustarse durante la implementacion, pero sirve como linea base para mantener claridad sobre el objetivo y el diseno esperado. La version actual asume que el aplicativo de nomina es una pagina web y no un ejecutable de escritorio, y que el proceso puede trabajar con multiples archivos Excel de entrada.
 
 ## Objetivo
 
-Preparar el entorno de ejecucion, validar prerequisitos, construir identificadores y rutas de trabajo, preparar logging y confirmar que el archivo fuente de Excel puede ser leido antes de pasar a subflujos posteriores.
+Preparar el entorno de ejecucion, validar prerequisitos, cargar la configuracion base, construir identificadores y rutas de trabajo, preparar logging y dejar abierto el navegador sobre la URL del aplicativo para subflujos posteriores. La deteccion y procesamiento de archivos Excel se delega a subflujos posteriores.
 
 ## Firma sugerida del subflujo
 
 ### Entradas
 
-- `pRutaExcel` `Text`
-- `pRutaAppNomina` `Text`
+- `pUrlAppNomina` `Text`
+- `pDirectorioEntrada` `Text`
 - `pDirectorioLogs` `Text`
 - `pUsaCredencialesSeguras` `Boolean`
 - `pUsuarioNomina` `Text`
@@ -24,11 +24,11 @@ Preparar el entorno de ejecucion, validar prerequisitos, construir identificador
 - `gFechaHoraInicio` `Datetime`
 - `gIdEjecucion` `Text`
 - `gArchivoLog` `Text`
-- `gHojasExcel` `List`
-- `gTotalHojas` `Number`
 - `gSesionAppAbierta` `Boolean`
 - `gAutenticado` `Boolean`
 - `gUsuarioNomina` `Text`
+- `gArchivosPendientes` `List`
+- `gTotalArchivosPendientes` `Number`
 
 ## Flujo literal en PAD
 
@@ -53,7 +53,7 @@ Preparar el entorno de ejecucion, validar prerequisitos, construir identificador
 - Value: `False`
 
 6. `Set variable`
-- Variable: `gTotalHojas`
+- Variable: `gTotalArchivosPendientes`
 - Value: `0`
 
 7. `Convert datetime to text`
@@ -101,12 +101,12 @@ Fecha inicio: %gFechaHoraInicio%
 
 - Append new line: `True`
 
-15. `If file exists`
-- File path: `pRutaExcel`
+15. `If folder exists`
+- Folder path: `pDirectorioEntrada`
 
 16. Rama `No`
 - `Set variable`
-  - `gMensajeError = "No se encontro el archivo Excel en la ruta indicada"`
+  - `gMensajeError = "No se encontro el directorio de entrada configurado"`
 - `Set variable`
   - `gEstadoInicializacion = "ERROR"`
 - `Write text to file`
@@ -114,7 +114,7 @@ Fecha inicio: %gFechaHoraInicio%
   - Text:
 
 ```text
-ERROR | %gMensajeError% | Ruta Excel: %pRutaExcel%
+ERROR | %gMensajeError% | Directorio entrada: %pDirectorioEntrada%
 ```
 
   - Append new line: `True`
@@ -127,17 +127,17 @@ ERROR | %gMensajeError% | Ruta Excel: %pRutaExcel%
   - Text:
 
 ```text
-OK | Archivo Excel encontrado | %pRutaExcel%
+OK | Directorio de entrada encontrado | %pDirectorioEntrada%
 ```
 
   - Append new line: `True`
 
-18. `If file exists`
-- File path: `pRutaAppNomina`
+18. `If`
+- Condition: `pUrlAppNomina` is empty
 
 19. Rama `No`
 - `Set variable`
-  - `gMensajeError = "No se encontro el ejecutable del aplicativo de nomina"`
+  - `gMensajeError = "No se definio la URL del aplicativo de nomina"`
 - `Set variable`
   - `gEstadoInicializacion = "ERROR"`
 - `Write text to file`
@@ -145,7 +145,7 @@ OK | Archivo Excel encontrado | %pRutaExcel%
   - Text:
 
 ```text
-ERROR | %gMensajeError% | Ruta App: %pRutaAppNomina%
+ERROR | %gMensajeError%
 ```
 
   - Append new line: `True`
@@ -157,7 +157,7 @@ ERROR | %gMensajeError% | Ruta App: %pRutaAppNomina%
   - Text:
 
 ```text
-OK | Aplicativo encontrado | %pRutaAppNomina%
+OK | URL aplicativo configurada | %pUrlAppNomina%
 ```
 
   - Append new line: `True`
@@ -187,41 +187,36 @@ Configuracion credenciales | Seguras: %pUsaCredencialesSeguras% | Usuario: %gUsu
 
 - Append new line: `True`
 
-25. `Launch Excel`
-- Launch Excel: `Open the following document`
-- Document path: `pRutaExcel`
-- Visible: `False`
-- Read only: `True`
-- Instance output:
-  - `ExcelInstance`
-
-26. `Get all worksheets from Excel workbook`
-- Excel instance: `ExcelInstance`
+25. `Get files in folder`
+- Folder: `pDirectorioEntrada`
+- File filter: `*.xlsx`
+- Include subfolders: `False`
+- Fail upon empty list: `False`
 - Output:
-  - `gHojasExcel`
+  - `gArchivosPendientes`
 
-27. `Get details of a list`
-- List: `gHojasExcel`
+26. `Get details of a list`
+- List: `gArchivosPendientes`
 - Detail: `Count`
 - Output:
-  - `gTotalHojas`
+  - `gTotalArchivosPendientes`
 
-28. `Write text to file`
+27. `Write text to file`
 - File path: `gArchivoLog`
 - Text:
 
 ```text
-Total hojas detectadas: %gTotalHojas%
+Total archivos Excel detectados: %gTotalArchivosPendientes%
 ```
 
 - Append new line: `True`
 
-29. `If`
-- Condition: `gTotalHojas = 0`
+28. `If`
+- Condition: `gTotalArchivosPendientes = 0`
 
-30. Rama `Si`
+29. Rama `Si`
 - `Set variable`
-  - `gMensajeError = "El Excel no contiene hojas para procesar"`
+  - `gMensajeError = "No se encontraron archivos Excel para procesar en el directorio de entrada"`
 - `Set variable`
   - `gEstadoInicializacion = "ERROR"`
 - `Write text to file`
@@ -233,21 +228,44 @@ ERROR | %gMensajeError%
 ```
 
   - Append new line: `True`
-- `Close Excel`
-  - Excel instance: `ExcelInstance`
-  - Save document: `False`
 - `Exit subflow`
 
-31. Rama `No`
-- `Close Excel`
-  - Excel instance: `ExcelInstance`
-  - Save document: `False`
+30. Rama `No`
+- `Write text to file`
+- File path: `gArchivoLog`
+- Text:
 
-32. `Set variable`
+```text
+Archivos listos para procesamiento posterior
+```
+
+- Append new line: `True`
+
+31. `Launch new Microsoft Edge`
+- Initial URL: `pUrlAppNomina`
+- Launch mode: `Normal`
+- Instance output:
+  - `BrowserInstance`
+
+32. `Wait for web page content`
+- Browser instance: `BrowserInstance`
+- Timeout: `30000`
+
+33. `Write text to file`
+- File path: `gArchivoLog`
+- Text:
+
+```text
+Navegador abierto correctamente | URL: %pUrlAppNomina%
+```
+
+- Append new line: `True`
+
+34. `Set variable`
 - Variable: `gEstadoInicializacion`
 - Value: `"OK"`
 
-33. `Write text to file`
+35. `Write text to file`
 - File path: `gArchivoLog`
 - Text:
 
@@ -256,6 +274,24 @@ Inicializacion completada correctamente
 ```
 
 - Append new line: `True`
+
+## Alcance sobre archivos de entrada
+
+`SF_Init` solo realiza una deteccion inicial de archivos Excel pendientes en el directorio configurado para validar que exista carga de trabajo disponible. No debe interpretar estructura, clasificar por tipo funcional ni abrir archivos especificos.
+
+La responsabilidad posterior debe separarse asi:
+
+- `SF_DescubrirArchivosEntrada`
+  - lista archivos pendientes
+  - clasifica por tipo, por ejemplo `NovedadesNomina` y `HorasExtra`
+  - prepara la cola o coleccion de procesamiento
+- `SF_ProcesarArchivo`
+  - recibe un archivo puntual y su tipo
+  - delega lectura y transformacion al subflujo especializado
+- `SF_LeerNovedadesNomina`
+  - interpreta hojas, tablas y novedades del Excel de nomina
+- `SF_LeerHorasExtra`
+  - interpreta hojas, tablas y estructura del Excel de horas extra
 
 ## Bloque de error recomendado
 
@@ -276,21 +312,24 @@ ERROR CONTROLADO | %gMensajeError%
 ```
 
   - Append new line: `True`
-- `Close Excel`
-  - Solo si `ExcelInstance` existe
+- `Close web browser`
+  - Solo si `BrowserInstance` existe y corresponde cerrarlo
 - `End`
 
 ## Variables adicionales recomendadas
 
 - `gPasswordNomina` `Sensitive text`
-- `ExcelInstance` `Excel instance`
+- `BrowserInstance` `Browser`
 - `gIdEjecucionTmp` `Text`
+- `gTotalArchivosPendientes` `Number`
 
 ## Reglas practicas
 
 - No dejes la contrasena en logs.
-- Abre el Excel en `Read only` en `SF_Init`.
+- No abras un archivo Excel especifico en `SF_Init`.
 - No proceses datos aqui; solo valida y prepara.
+- La lectura de hojas, tablas y registros debe ocurrir en subflujos posteriores por tipo de archivo.
+- Si el siguiente subflujo reutiliza la misma sesion web, no cierres el navegador al finalizar `SF_Init`.
 
 ## Nota de evolucion
 
