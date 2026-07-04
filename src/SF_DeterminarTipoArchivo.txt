@@ -1,0 +1,81 @@
+# SF_DeterminarTipoArchivo
+# Valida el tipo real del archivo Excel a partir de una inspeccion minima del workbook
+SET gEstadoDeterminacionTipo TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTipoArchivoDeterminado TO $'''NoIdentificado'''
+SET gCantidadHojasArchivoActual TO 0
+SET gCoincidenciasHorasExtra TO 0
+SET gCoincidenciasNovedadesNomina TO 0
+
+BLOCK Error_DeterminarTipoArchivo
+ON BLOCK ERROR all
+SET gEstadoDeterminacionTipo TO $'''ERROR'''
+SET gEsErrorControlado TO True
+THROW ERROR
+END
+    Scripting.RunPowershellScript.RunScript Script: $'''$ruta = "%pRutaArchivoActual%"
+[Console]::WriteLine([System.IO.Path]::GetFileName($ruta))''' ScriptOutput=> gNombreArchivoActualPS
+    Text.SplitText.Split Text: gNombreArchivoActualPS StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gNombreArchivoActualPartes
+    SET gNombreArchivoActual TO gNombreArchivoActualPartes[0]
+
+    File.WriteText File: gArchivoLog TextToWrite: $'''Inicio determinacion tipo archivo | %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''Tipo preliminar recibido | %pTipoPreliminarArchivo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: pRutaArchivoActual Visible: False ReadOnly: True Instance=> ExcelInstance
+    Excel.GetWorksheets Instance: ExcelInstance Worksheets=> gHojasArchivoActual
+    SET gCantidadHojasArchivoActual TO gHojasArchivoActual.Count
+    File.WriteText File: gArchivoLog TextToWrite: $'''Cantidad de hojas detectadas | %gCantidadHojasArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+
+    LOOP FOREACH CurrentSheet IN gHojasArchivoActual
+        Excel.ActivateWorksheet Instance: ExcelInstance Name: CurrentSheet
+        Excel.ReadFromExcel.ReadCells Instance: ExcelInstance StartColumn: $'''A''' StartRow: 1 EndColumn: $'''F''' EndRow: 10 FirstLineIsHeader: False ReadAsText: True CellRange=> gMuestraHojaActual
+
+        Scripting.RunPowershellScript.RunScript Script: $'''$texto = @"%gMuestraHojaActual%"@
+$normalizado = $texto.ToLowerInvariant()
+$contadorHoras = 0
+$contadorNomina = 0
+
+$clavesHoras = @("hora","horas","extra","recargo","nocturno")
+$clavesNomina = @("novedad","concepto","nomina","incapacidad","vacaciones","licencia")
+
+foreach ($clave in $clavesHoras) {
+    if ($normalizado.Contains($clave)) { $contadorHoras++ }
+}
+
+foreach ($clave in $clavesNomina) {
+    if ($normalizado.Contains($clave)) { $contadorNomina++ }
+}
+
+[Console]::WriteLine($contadorHoras)
+[Console]::WriteLine($contadorNomina)''' ScriptOutput=> gResultadoAnalisisHoja
+        Text.SplitText.Split Text: gResultadoAnalisisHoja StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gPartesAnalisisHoja
+        SET gCoincidenciasHorasHoja TO gPartesAnalisisHoja[0]
+        SET gCoincidenciasNominaHoja TO gPartesAnalisisHoja[1]
+        Variables.IncreaseVariable Value: gCoincidenciasHorasExtra IncrementValue: gCoincidenciasHorasHoja
+        Variables.IncreaseVariable Value: gCoincidenciasNovedadesNomina IncrementValue: gCoincidenciasNominaHoja
+    END
+
+    IF gCoincidenciasHorasExtra > gCoincidenciasNovedadesNomina THEN
+        SET gTipoArchivoDeterminado TO $'''HorasExtra'''
+    ELSE
+        IF gCoincidenciasNovedadesNomina > gCoincidenciasHorasExtra THEN
+            SET gTipoArchivoDeterminado TO $'''NovedadesNomina'''
+        ELSE
+            SET gTipoArchivoDeterminado TO $'''NoIdentificado'''
+        END
+    END
+
+    File.WriteText File: gArchivoLog TextToWrite: $'''Resumen analisis | HorasExtra: %gCoincidenciasHorasExtra% | NovedadesNomina: %gCoincidenciasNovedadesNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''Tipo determinado | %gTipoArchivoDeterminado%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+
+    Excel.CloseExcel.CloseAndSave Instance: ExcelInstance SaveDocument: False
+    SET gEstadoDeterminacionTipo TO $'''OK'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Determinacion de tipo completada correctamente | %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+END
+
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

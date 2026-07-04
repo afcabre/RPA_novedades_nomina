@@ -1,0 +1,114 @@
+# SF_TomarSiguienteArchivoPendiente
+# Selecciona el siguiente archivo pendiente a partir de las listas clasificadas preliminarmente
+SET gEstadoSeleccionArchivo TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gRutaArchivoActual TO $''''''
+SET gNombreArchivoActual TO $''''''
+SET gTipoPreliminarArchivo TO $''''''
+SET gHayArchivoPendiente TO False
+
+IF IsEmpty(pPrioridadTipoArchivo) THEN
+    SET pPrioridadTipoArchivo TO $'''NovedadesNomina'''
+END
+
+IF IsEmpty(gIndiceNovedadesNominaActual) THEN
+    SET gIndiceNovedadesNominaActual TO 0
+END
+
+IF IsEmpty(gIndiceHorasExtraActual) THEN
+    SET gIndiceHorasExtraActual TO 0
+END
+
+IF IsEmpty(gIndiceNoClasificadosActual) THEN
+    SET gIndiceNoClasificadosActual TO 0
+END
+
+BLOCK Error_TomarSiguienteArchivoPendiente
+ON BLOCK ERROR all
+SET gEstadoSeleccionArchivo TO $'''ERROR'''
+SET gEsErrorControlado TO True
+THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''Inicio seleccion archivo siguiente | Prioridad: %pPrioridadTipoArchivo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+
+    IF pPrioridadTipoArchivo = $'''NovedadesNomina''' THEN
+        IF gListaArchivosNovedadesNomina.Count > gIndiceNovedadesNominaActual THEN
+            SET gRutaArchivoActual TO gListaArchivosNovedadesNomina[gIndiceNovedadesNominaActual]
+            SET gTipoPreliminarArchivo TO $'''NovedadesNomina'''
+            Variables.IncreaseVariable Value: gIndiceNovedadesNominaActual IncrementValue: 1
+        ELSE
+            IF gListaArchivosHorasExtra.Count > gIndiceHorasExtraActual THEN
+                SET gRutaArchivoActual TO gListaArchivosHorasExtra[gIndiceHorasExtraActual]
+                SET gTipoPreliminarArchivo TO $'''HorasExtra'''
+                Variables.IncreaseVariable Value: gIndiceHorasExtraActual IncrementValue: 1
+            ELSE
+                IF gListaArchivosNoClasificados.Count > gIndiceNoClasificadosActual THEN
+                    SET gRutaArchivoActual TO gListaArchivosNoClasificados[gIndiceNoClasificadosActual]
+                    SET gTipoPreliminarArchivo TO $'''NoClasificado'''
+                    Variables.IncreaseVariable Value: gIndiceNoClasificadosActual IncrementValue: 1
+                END
+            END
+        END
+    ELSE
+        IF pPrioridadTipoArchivo = $'''HorasExtra''' THEN
+            IF gListaArchivosHorasExtra.Count > gIndiceHorasExtraActual THEN
+                SET gRutaArchivoActual TO gListaArchivosHorasExtra[gIndiceHorasExtraActual]
+                SET gTipoPreliminarArchivo TO $'''HorasExtra'''
+                Variables.IncreaseVariable Value: gIndiceHorasExtraActual IncrementValue: 1
+            ELSE
+                IF gListaArchivosNovedadesNomina.Count > gIndiceNovedadesNominaActual THEN
+                    SET gRutaArchivoActual TO gListaArchivosNovedadesNomina[gIndiceNovedadesNominaActual]
+                    SET gTipoPreliminarArchivo TO $'''NovedadesNomina'''
+                    Variables.IncreaseVariable Value: gIndiceNovedadesNominaActual IncrementValue: 1
+                ELSE
+                    IF gListaArchivosNoClasificados.Count > gIndiceNoClasificadosActual THEN
+                        SET gRutaArchivoActual TO gListaArchivosNoClasificados[gIndiceNoClasificadosActual]
+                        SET gTipoPreliminarArchivo TO $'''NoClasificado'''
+                        Variables.IncreaseVariable Value: gIndiceNoClasificadosActual IncrementValue: 1
+                    END
+                END
+            END
+        ELSE
+            IF gListaArchivosNovedadesNomina.Count > gIndiceNovedadesNominaActual THEN
+                SET gRutaArchivoActual TO gListaArchivosNovedadesNomina[gIndiceNovedadesNominaActual]
+                SET gTipoPreliminarArchivo TO $'''NovedadesNomina'''
+                Variables.IncreaseVariable Value: gIndiceNovedadesNominaActual IncrementValue: 1
+            ELSE
+                IF gListaArchivosHorasExtra.Count > gIndiceHorasExtraActual THEN
+                    SET gRutaArchivoActual TO gListaArchivosHorasExtra[gIndiceHorasExtraActual]
+                    SET gTipoPreliminarArchivo TO $'''HorasExtra'''
+                    Variables.IncreaseVariable Value: gIndiceHorasExtraActual IncrementValue: 1
+                ELSE
+                    IF gListaArchivosNoClasificados.Count > gIndiceNoClasificadosActual THEN
+                        SET gRutaArchivoActual TO gListaArchivosNoClasificados[gIndiceNoClasificadosActual]
+                        SET gTipoPreliminarArchivo TO $'''NoClasificado'''
+                        Variables.IncreaseVariable Value: gIndiceNoClasificadosActual IncrementValue: 1
+                    END
+                END
+            END
+        END
+    END
+
+    IF IsEmpty(gRutaArchivoActual) THEN
+        SET gHayArchivoPendiente TO False
+        SET gEstadoSeleccionArchivo TO $'''SIN_PENDIENTES'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''No hay archivos pendientes para seleccionar''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+
+    SET gHayArchivoPendiente TO True
+    Scripting.RunPowershellScript.RunScript Script: $'''$ruta = "%gRutaArchivoActual%"
+[Console]::WriteLine([System.IO.Path]::GetFileName($ruta))''' ScriptOutput=> gNombreArchivoActualPS
+    Text.SplitText.Split Text: gNombreArchivoActualPS StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gNombreArchivoActualPartes
+    SET gNombreArchivoActual TO gNombreArchivoActualPartes[0]
+
+    File.WriteText File: gArchivoLog TextToWrite: $'''Archivo seleccionado | Tipo preliminar: %gTipoPreliminarArchivo% | Archivo: %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEstadoSeleccionArchivo TO $'''OK'''
+END
+
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

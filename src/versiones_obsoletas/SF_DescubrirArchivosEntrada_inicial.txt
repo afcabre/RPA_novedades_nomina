@@ -1,0 +1,117 @@
+# SF_DescubrirArchivosEntrada
+# Reutiliza la deteccion temprana de SF_Init y solo reexplora si la lista llega vacia o se fuerza el redescubrimiento
+SET gEstadoDescubrimiento TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+
+Variables.CreateNewList List=> gListaArchivosDepurada
+Variables.CreateNewList List=> gListaArchivosHorasExtra
+Variables.CreateNewList List=> gListaArchivosNovedadesNomina
+Variables.CreateNewList List=> gListaArchivosNoClasificados
+Variables.CreateNewList List=> gListaArchivosTemporales
+
+BLOCK Error_DescubrirArchivosEntrada
+ON BLOCK ERROR all
+SET gEstadoDescubrimiento TO $'''ERROR'''
+SET gEsErrorControlado TO True
+THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''Inicio descubrimiento de archivos de entrada''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+
+    IF pForzarRedescubrimiento = True OR gListaArchivosAProcesar.Count = 0 THEN
+        File.WriteText File: gArchivoLog TextToWrite: $'''Redescubrimiento forzado o lista vacia. Se consulta nuevamente el directorio de entrada''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Folder.GetFiles Folder: pDirectorioEntrada FileFilter: $'''*.xlsx''' IncludeSubfolders: False FailOnAccessDenied: True SortBy1: Folder.SortBy.NoSort SortDescending1: False SortBy2: Folder.SortBy.NoSort SortDescending2: False SortBy3: Folder.SortBy.NoSort SortDescending3: False Files=> gListaArchivosAProcesar
+    ELSE
+        File.WriteText File: gArchivoLog TextToWrite: $'''Se reutiliza la lista de archivos detectada previamente en SF_Init''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+
+    IF gListaArchivosAProcesar.Count = 0 THEN
+        SET gMensajeError TO $'''No hay archivos Excel disponibles para descubrimiento'''
+        SET gEstadoDescubrimiento TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+
+    LOOP FOREACH CurrentItem IN gListaArchivosAProcesar
+        Scripting.RunPowershellScript.RunScript Script: $'''$ruta = "%CurrentItem%"
+$nombre = [System.IO.Path]::GetFileName($ruta)
+$textoFormD = $nombre.Normalize([Text.NormalizationForm]::FormD)
+$sb = New-Object System.Text.StringBuilder
+
+foreach ($char in $textoFormD.ToCharArray()) {
+    $unicodeCategory = [Globalization.CharUnicodeInfo]::GetUnicodeCategory($char)
+    if ($unicodeCategory -ne [Globalization.UnicodeCategory]::NonSpacingMark) {
+        [void]$sb.Append($char)
+    }
+}
+
+$normalizado = $sb.ToString().ToLowerInvariant()
+
+if ($normalizado.StartsWith("~$")) {
+    $categoria = "TEMPORAL"
+}
+elseif ($normalizado.Contains("hora") -or $normalizado.Contains("extra")) {
+    $categoria = "HORASEXTRA"
+}
+elseif ($normalizado.Contains("novedad") -or $normalizado.Contains("novedades") -or $normalizado.Contains("nomina") -or $normalizado.Contains("nominas") -or $normalizado.Contains("consolidado")) {
+    $categoria = "NOVEDADESNOMINA"
+}
+else {
+    $categoria = "NOCLASIFICADO"
+}
+
+[Console]::WriteLine($nombre + "|||" + $categoria)''' ScriptOutput=> gResultadoClasificacionArchivo
+        File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG clasificacion raw | %gResultadoClasificacionArchivo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Scripting.RunPowershellScript.RunScript Script: $'''$partes = "%gResultadoClasificacionArchivo%".Split("|||")
+[Console]::WriteLine($partes[0].Trim())
+[Console]::WriteLine($partes[1].Trim())''' ScriptOutput=> gResultadoClasificacionNormalizado
+        Text.SplitText.Split Text: gResultadoClasificacionNormalizado StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gPartesClasificacionArchivo
+        SET gNombreArchivoActual TO gPartesClasificacionArchivo[0]
+        SET gCategoriaArchivoActual TO gPartesClasificacionArchivo[1]
+
+        IF gCategoriaArchivoActual = $'''TEMPORAL''' THEN
+            Variables.AddItemToList Item: CurrentItem List: gListaArchivosTemporales
+            File.WriteText File: gArchivoLog TextToWrite: $'''Archivo temporal descartado | %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            Variables.AddItemToList Item: CurrentItem List: gListaArchivosDepurada
+
+            IF gCategoriaArchivoActual = $'''HORASEXTRA''' THEN
+                Variables.AddItemToList Item: CurrentItem List: gListaArchivosHorasExtra
+                File.WriteText File: gArchivoLog TextToWrite: $'''Archivo clasificado | HorasExtra | %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            ELSE
+                IF gCategoriaArchivoActual = $'''NOVEDADESNOMINA''' THEN
+                    Variables.AddItemToList Item: CurrentItem List: gListaArchivosNovedadesNomina
+                    File.WriteText File: gArchivoLog TextToWrite: $'''Archivo clasificado | NovedadesNomina | %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                ELSE
+                    Variables.AddItemToList Item: CurrentItem List: gListaArchivosNoClasificados
+                    File.WriteText File: gArchivoLog TextToWrite: $'''Archivo no clasificado | %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                END
+            END
+        END
+    END
+
+    SET gListaArchivosAProcesar TO gListaArchivosDepurada
+    SET gTotalArchivosAProcesar TO gListaArchivosAProcesar.Count
+    SET gTotalArchivosHorasExtra TO gListaArchivosHorasExtra.Count
+    SET gTotalArchivosNovedadesNomina TO gListaArchivosNovedadesNomina.Count
+    SET gTotalArchivosNoClasificados TO gListaArchivosNoClasificados.Count
+    SET gTotalArchivosTemporales TO gListaArchivosTemporales.Count
+
+    File.WriteText File: gArchivoLog TextToWrite: $'''Resumen descubrimiento | Total validos: %gTotalArchivosAProcesar% | HorasExtra: %gTotalArchivosHorasExtra% | NovedadesNomina: %gTotalArchivosNovedadesNomina% | NoClasificados: %gTotalArchivosNoClasificados% | Temporales: %gTotalArchivosTemporales%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+
+    IF gTotalArchivosAProcesar = 0 THEN
+        SET gMensajeError TO $'''No quedaron archivos validos para procesamiento despues de depuracion'''
+        SET gEstadoDescubrimiento TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+
+    SET gEstadoDescubrimiento TO $'''OK'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Descubrimiento de archivos completado correctamente''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+END
+
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END
