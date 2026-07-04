@@ -1,5 +1,5 @@
 # SF_TomarSiguienteArchivoPendiente
-# Selecciona el siguiente archivo pendiente a partir de las listas clasificadas preliminarmente
+# Toma el siguiente archivo pendiente a partir de las listas clasificadas preliminarmente
 SET gEstadoSeleccionArchivo TO $'''INICIANDO'''
 SET gMensajeError TO $''''''
 SET gEsErrorControlado TO False
@@ -7,31 +7,25 @@ SET gRutaArchivoActual TO $''''''
 SET gNombreArchivoActual TO $''''''
 SET gTipoPreliminarArchivo TO $''''''
 SET gHayArchivoPendiente TO False
-
 IF IsEmpty(pPrioridadTipoArchivo) THEN
     SET pPrioridadTipoArchivo TO $'''NovedadesNomina'''
 END
-
 IF IsEmpty(gIndiceNovedadesNominaActual) THEN
     SET gIndiceNovedadesNominaActual TO 0
 END
-
 IF IsEmpty(gIndiceHorasExtraActual) THEN
     SET gIndiceHorasExtraActual TO 0
 END
-
 IF IsEmpty(gIndiceNoClasificadosActual) THEN
     SET gIndiceNoClasificadosActual TO 0
 END
-
 BLOCK Error_TomarSiguienteArchivoPendiente
 ON BLOCK ERROR all
-SET gEstadoSeleccionArchivo TO $'''ERROR'''
-SET gEsErrorControlado TO True
-THROW ERROR
+    SET gEstadoSeleccionArchivo TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
 END
-    File.WriteText File: gArchivoLog TextToWrite: $'''Inicio seleccion archivo siguiente | Prioridad: %pPrioridadTipoArchivo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
-
+    File.WriteText File: gArchivoLog TextToWrite: $'''Inicio toma archivo pendiente | Prioridad: %pPrioridadTipoArchivo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     IF pPrioridadTipoArchivo = $'''NovedadesNomina''' THEN
         IF gListaArchivosNovedadesNomina.Count > gIndiceNovedadesNominaActual THEN
             SET gRutaArchivoActual TO gListaArchivosNovedadesNomina[gIndiceNovedadesNominaActual]
@@ -89,24 +83,20 @@ END
             END
         END
     END
-
     IF IsEmpty(gRutaArchivoActual) THEN
         SET gHayArchivoPendiente TO False
         SET gEstadoSeleccionArchivo TO $'''SIN_PENDIENTES'''
-        File.WriteText File: gArchivoLog TextToWrite: $'''No hay archivos pendientes para seleccionar''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        File.WriteText File: gArchivoLog TextToWrite: $'''No hay archivos pendientes para tomar''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         EXIT FUNCTION
     END
-
     SET gHayArchivoPendiente TO True
-    Scripting.RunPowershellScript.RunScript Script: $'''$ruta = "%gRutaArchivoActual%"
+    Scripting.RunPowershellScript.RunScript Script: $'''$ruta = \"%gRutaArchivoActual%\"
 [Console]::WriteLine([System.IO.Path]::GetFileName($ruta))''' ScriptOutput=> gNombreArchivoActualPS
     Text.SplitText.Split Text: gNombreArchivoActualPS StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gNombreArchivoActualPartes
     SET gNombreArchivoActual TO gNombreArchivoActualPartes[0]
-
     File.WriteText File: gArchivoLog TextToWrite: $'''Archivo seleccionado | Tipo preliminar: %gTipoPreliminarArchivo% | Archivo: %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     SET gEstadoSeleccionArchivo TO $'''OK'''
 END
-
 IF $'''gEsErrorControlado''' = True THEN
     ERROR => gMensajeError
     File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8

@@ -12,12 +12,15 @@ SET pUrlAppNomina TO $'''https://qa.practiko.com.co/madrecol/'''
 SET pDirectorioEntrada TO $'''C:\\Dev\\Aspraco\\bandeja_trabajo'''
 SET pDirectorioLogs TO $'''C:\\Dev\\Aspraco\\bandeja_trabajo\\logs'''
 SET pUsaCredencialesSeguras TO True
+SET pMesNominaObjetivo TO $'''MARZO'''
+SET pAnoNominaObjetivo TO 2026
+SET pPeriodoNominaObjetivo TO $'''1RA QUINCENA'''
 SET gEsErrorControlado TO False
 BLOCK Error_Init
 ON BLOCK ERROR all
-SET gEstadoInicializacion TO $'''ERROR'''
-SET gEsErrorControlado TO True
-THROW ERROR
+    SET gEstadoInicializacion TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
 END
     # Validar requisitos mínimos ambiente para operación
     IF (Folder.IfFolderExists.DoesNotExist Path: pDirectorioEntrada) THEN

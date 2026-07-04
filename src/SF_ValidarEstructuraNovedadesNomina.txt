@@ -1,0 +1,125 @@
+# SF_ValidarEstructuraNovedadesNomina
+# Valida estructura de archivo de novedades de nomina y determina hojas elegibles para el periodo objetivo
+SET gEstadoValidacionEstructuraNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gArchivoNominaValido TO False
+SET gCantidadHojasArchivoActual TO 0
+SET gCabeceraNominaDetectada TO False
+
+Variables.CreateNewList List=> gListaHojasNominaValidas
+Variables.CreateNewList List=> gListaHojasNominaDescartadas
+
+BLOCK Error_ValidarEstructuraNovedadesNomina
+ON BLOCK ERROR all
+SET gEstadoValidacionEstructuraNomina TO $'''ERROR'''
+SET gEsErrorControlado TO True
+THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''Inicio validacion estructura novedades nomina | Archivo: %gNombreArchivoActual% | Mes: %pMesNominaObjetivo% | Ano: %pAnoNominaObjetivo% | Periodo: %pPeriodoNominaObjetivo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+
+    IF IsEmpty(pPeriodoNominaObjetivo) THEN
+        SET gMensajeError TO $'''No se definio el periodo objetivo de nomina para la corrida'''
+        SET gEstadoValidacionEstructuraNomina TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: pRutaArchivoActual Visible: False ReadOnly: True Instance=> ExcelInstance
+    Excel.GetWorksheets Instance: ExcelInstance Worksheets=> gHojasArchivoActual
+    SET gCantidadHojasArchivoActual TO gHojasArchivoActual.Count
+    File.WriteText File: gArchivoLog TextToWrite: $'''Cantidad hojas archivo nomina | %gCantidadHojasArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+
+    LOOP FOREACH CurrentSheet IN gHojasArchivoActual
+        Excel.ActivateWorksheet Instance: ExcelInstance Name: CurrentSheet
+        Excel.ReadFromExcel.ReadCells Instance: ExcelInstance StartColumn: $'''A''' StartRow: 1 EndColumn: $'''H''' EndRow: 12 FirstLineIsHeader: False ReadAsText: True CellRange=> gMuestraHojaActual
+
+        Scripting.RunPowershellScript.RunScript Script: $'''$nombreHoja = "%CurrentSheet%"
+$texto = @"%gMuestraHojaActual%"@
+$normalizadoHoja = $nombreHoja.Normalize([Text.NormalizationForm]::FormD)
+$normalizadoTexto = $texto.Normalize([Text.NormalizationForm]::FormD)
+$sbHoja = New-Object System.Text.StringBuilder
+$sbTexto = New-Object System.Text.StringBuilder
+
+foreach ($char in $normalizadoHoja.ToCharArray()) {
+    $unicodeCategory = [Globalization.CharUnicodeInfo]::GetUnicodeCategory($char)
+    if ($unicodeCategory -ne [Globalization.UnicodeCategory]::NonSpacingMark) {
+        [void]$sbHoja.Append($char)
+    }
+}
+
+foreach ($char in $normalizadoTexto.ToCharArray()) {
+    $unicodeCategory = [Globalization.CharUnicodeInfo]::GetUnicodeCategory($char)
+    if ($unicodeCategory -ne [Globalization.UnicodeCategory]::NonSpacingMark) {
+        [void]$sbTexto.Append($char)
+    }
+}
+
+$hoja = $sbHoja.ToString().ToLowerInvariant()
+$contenido = $sbTexto.ToString().ToLowerInvariant()
+
+$cabeceraValida = $false
+if (($contenido.Contains("empleado") -or $contenido.Contains("nombre")) -and ($contenido.Contains("novedad") -or $contenido.Contains("concepto"))) {
+    $cabeceraValida = $true
+}
+
+$quincenaDetectada = "NO_DETECTADA"
+if ($hoja.Contains("1ra quincena") -or $contenido.Contains("1ra quincena") -or $contenido.Contains("primera quincena")) {
+    $quincenaDetectada = "1RA QUINCENA"
+}
+elseif ($hoja.Contains("2da quincena") -or $contenido.Contains("2da quincena") -or $contenido.Contains("segunda quincena")) {
+    $quincenaDetectada = "2DA QUINCENA"
+}
+
+$hojaValida = $false
+if ($cabeceraValida) {
+    if ("%pPeriodoNominaObjetivo%" -eq "MES_COMPLETO") {
+        if ($quincenaDetectada -ne "NO_DETECTADA") { $hojaValida = $true }
+    }
+    elseif ("%pPeriodoNominaObjetivo%" -eq $quincenaDetectada) {
+        $hojaValida = $true
+    }
+}
+
+[Console]::WriteLine($cabeceraValida)
+[Console]::WriteLine($quincenaDetectada)
+[Console]::WriteLine($hojaValida)''' ScriptOutput=> gResultadoValidacionHojaNomina
+
+        Text.SplitText.Split Text: gResultadoValidacionHojaNomina StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gPartesValidacionHojaNomina
+        SET gCabeceraHojaActual TO gPartesValidacionHojaNomina[0]
+        SET gQuincenaHojaActual TO gPartesValidacionHojaNomina[1]
+        SET gHojaValidaActual TO gPartesValidacionHojaNomina[2]
+
+        IF gCabeceraHojaActual = $'''True''' THEN
+            SET gCabeceraNominaDetectada TO True
+        END
+
+        IF gHojaValidaActual = $'''True''' THEN
+            Variables.AddItemToList Item: CurrentSheet List: gListaHojasNominaValidas
+            File.WriteText File: gArchivoLog TextToWrite: $'''Hoja valida | %CurrentSheet% | Quincena: %gQuincenaHojaActual% | Cabecera: %gCabeceraHojaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            Variables.AddItemToList Item: CurrentSheet List: gListaHojasNominaDescartadas
+            File.WriteText File: gArchivoLog TextToWrite: $'''Hoja descartada | %CurrentSheet% | Quincena: %gQuincenaHojaActual% | Cabecera: %gCabeceraHojaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        END
+    END
+
+    IF gListaHojasNominaValidas.Count = 0 THEN
+        SET gArchivoNominaValido TO False
+        SET gEstadoValidacionEstructuraNomina TO $'''SIN_HOJAS_VALIDAS'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''Archivo nomina sin hojas validas para el periodo objetivo''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Excel.CloseExcel.CloseAndSave Instance: ExcelInstance SaveDocument: False
+        EXIT FUNCTION
+    END
+
+    SET gArchivoNominaValido TO True
+    SET gEstadoValidacionEstructuraNomina TO $'''OK'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Resumen validacion nomina | Hojas validas: %gListaHojasNominaValidas.Count% | Hojas descartadas: %gListaHojasNominaDescartadas.Count% | Cabecera detectada: %gCabeceraNominaDetectada%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    Excel.CloseExcel.CloseAndSave Instance: ExcelInstance SaveDocument: False
+    File.WriteText File: gArchivoLog TextToWrite: $'''Validacion estructura novedades nomina completada correctamente''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+END
+
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END
