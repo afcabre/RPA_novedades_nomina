@@ -1,5 +1,5 @@
-# SF_TomarSiguienteArchivoPendiente
-# Toma el siguiente archivo pendiente a partir de las listas clasificadas preliminarmente
+# SF_SeleccionarArchivoSiguiente
+# Selecciona el siguiente archivo pendiente a partir de las listas clasificadas preliminarmente
 SET gEstadoSeleccionArchivo TO $'''INICIANDO'''
 SET gMensajeError TO $''''''
 SET gEsErrorControlado TO False
@@ -19,13 +19,14 @@ END
 IF IsEmpty(gIndiceNoClasificadosActual) THEN
     SET gIndiceNoClasificadosActual TO 0
 END
-BLOCK Error_TomarSiguienteArchivoPendiente
+BLOCK Error_SeleccionarArchivoSiguiente
 ON BLOCK ERROR all
     SET gEstadoSeleccionArchivo TO $'''ERROR'''
     SET gEsErrorControlado TO True
     THROW ERROR
 END
-    File.WriteText File: gArchivoLog TextToWrite: $'''Inicio toma archivo pendiente | Prioridad: %pPrioridadTipoArchivo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio seleccion archivo siguiente | Prioridad: %pPrioridadTipoArchivo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     IF pPrioridadTipoArchivo = $'''NovedadesNomina''' THEN
         IF gListaArchivosNovedadesNomina.Count > gIndiceNovedadesNominaActual THEN
             SET gRutaArchivoActual TO gListaArchivosNovedadesNomina[gIndiceNovedadesNominaActual]
@@ -86,11 +87,11 @@ END
     IF IsEmpty(gRutaArchivoActual) THEN
         SET gHayArchivoPendiente TO False
         SET gEstadoSeleccionArchivo TO $'''SIN_PENDIENTES'''
-        File.WriteText File: gArchivoLog TextToWrite: $'''No hay archivos pendientes para tomar''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        File.WriteText File: gArchivoLog TextToWrite: $'''No hay archivos pendientes para seleccionar''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         EXIT FUNCTION
     END
     SET gHayArchivoPendiente TO True
-    Scripting.RunPowershellScript.RunScript Script: $'''$ruta = \"%gRutaArchivoActual%\"
+    Scripting.RunPowershellScript.RunScript Script: $'''$ruta = \'%gRutaArchivoActual%\'
 [Console]::WriteLine([System.IO.Path]::GetFileName($ruta))''' ScriptOutput=> gNombreArchivoActualPS
     Text.SplitText.Split Text: gNombreArchivoActualPS StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gNombreArchivoActualPartes
     SET gNombreArchivoActual TO gNombreArchivoActualPartes[0]

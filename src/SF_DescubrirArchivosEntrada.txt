@@ -1,5 +1,5 @@
-# SF_DescubrirArchivosEntrada
-# Version activa en PAD, evitando parametros opcionales conflictivos
+# SF_DescubrirArchivosEntrada_v2
+# Version simplificada para PAD, evitando parametros opcionales conflictivos
 SET gEstadoDescubrimiento TO $'''INICIANDO'''
 SET gMensajeError TO $''''''
 SET gEsErrorControlado TO False
@@ -17,7 +17,8 @@ ON BLOCK ERROR
     SET gEsErrorControlado TO True
     THROW ERROR
 END
-    File.WriteText File: gArchivoLog TextToWrite: $'''Inicio descubrimiento de archivos de entrada''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio descubrimiento de archivos de entrada''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     IF pForzarRedescubrimiento = True OR gListaArchivosAProcesar.Count = 0 THEN
         File.WriteText File: gArchivoLog TextToWrite: $'''Redescubrimiento forzado o lista vacia. Se consulta nuevamente el directorio de entrada''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         Folder.GetFiles Folder: pDirectorioEntrada FileFilter: $'''*.xlsx''' IncludeSubfolders: False FailOnAccessDenied: True Files=> gListaArchivosAProcesar
@@ -31,7 +32,7 @@ END
         EXIT FUNCTION
     END
     LOOP FOREACH CurrentItem IN gListaArchivosAProcesar
-        Scripting.RunPowershellScript.RunScript Script: $'''$ruta = \"%CurrentItem%\"
+        Scripting.RunPowershellScript.RunScript Script: $'''$ruta = \'%CurrentItem%\'
 $nombre = [System.IO.Path]::GetFileName($ruta)
 
 $textoFormD = $nombre.Normalize([Text.NormalizationForm]::FormD)
@@ -93,7 +94,7 @@ else {
     SET gTotalArchivosNoClasificados TO gListaArchivosNoClasificados.Count
     SET gTotalArchivosTemporales TO gListaArchivosTemporales.Count
     File.WriteText File: gArchivoLog TextToWrite: $'''Resumen descubrimiento | Total validos: %gTotalArchivosAProcesar% | HorasExtra: %gTotalArchivosHorasExtra% | NovedadesNomina: %gTotalArchivosNovedadesNomina% | NoClasificados: %gTotalArchivosNoClasificados% | Temporales: %gTotalArchivosTemporales%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
-    CALL SF_TomarSiguienteArchivoPendiente
+    DISABLE CALL SF_TomarSiguienteArchivoPendiente
     IF gTotalArchivosAProcesar = 0 THEN
         SET gMensajeError TO $'''No quedaron archivos validos para procesamiento despues de depuracion'''
         SET gEstadoDescubrimiento TO $'''ERROR'''
