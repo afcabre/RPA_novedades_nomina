@@ -19,13 +19,13 @@ A diferencia del flujo de horas extra, aqui los registros no traen una fecha por
 
 ## Relacion con subflujos previos y posteriores
 
-- `SF_TomarSiguienteArchivoPendiente` entrega el archivo actual y su tipo preliminar
+- `SF_TomarSiguienteArchivoPendiente` entrega `gRutaArchivoActual`, el nombre del archivo actual y su tipo preliminar
 - `SF_ValidarEstructuraNovedadesNomina` confirma estructura y determina hojas elegibles
 - luego un subflujo de lectura detallada debe consumir solo las hojas validadas para el periodo objetivo
 
 ## Entradas sugeridas
 
-- `pRutaArchivoActual` `Text`
+- `gRutaArchivoActual` `Text`
 - `pMesNominaObjetivo` `Text`
 - `pAnoNominaObjetivo` `Text`
 - `pPeriodoNominaObjetivo` `Text`
@@ -44,6 +44,9 @@ Valores esperados para `pPeriodoNominaObjetivo`:
 - `gArchivoNominaValido` `Boolean`
 - `gCantidadHojasArchivoActual` `Number`
 - `gListaHojasNominaValidas` `List`
+- `gListaFilasCabeceraNominaValidas` `List`
+- `gListaFilasInicioDatosNominaValidas` `List`
+- `gListaQuincenasNominaValidas` `List`
 - `gListaHojasNominaDescartadas` `List`
 - `gCabeceraNominaDetectada` `Boolean`
 
@@ -54,21 +57,43 @@ Valores esperados para `pPeriodoNominaObjetivo`:
 3. para cada hoja:
    - leer una muestra controlada de celdas
    - validar presencia de cabecera esperada del template
+   - detectar si la cabecera real esta en fila 1 o fila 2
    - identificar si la hoja corresponde a `1RA QUINCENA` o `2DA QUINCENA`
 4. comparar la quincena detectada con `pPeriodoNominaObjetivo`
-5. agregar la hoja a validas o descartadas
+5. para cada hoja valida, guardar en listas paralelas:
+   - nombre de hoja
+   - fila de cabecera
+   - fila inicial de datos
+   - quincena detectada
+6. agregar la hoja a validas o descartadas
 6. si no queda ninguna hoja valida, el archivo no debe pasar a procesamiento
 
 ## Cabecera esperada
 
-La version inicial debe manejar una lista configurable de encabezados clave del template de novedades. Ejemplos:
+La validacion debe inspeccionar primero fila 1 y luego fila 2, porque la cabecera puede venir en cualquiera de esas dos filas. La cabecera base esperada para novedades de nomina es:
 
-- identificacion del empleado
-- nombre del empleado
-- concepto o novedad
-- valor o cantidad
+- `CIUDAD`
+- `NOMBRE`
+- `CEDULA DE CIUDADANIA`
+- `AREA`
+- `SUELDO <MES>/<AA>`
+- `AUX. EXTRALEGAL <MES>/<AA>`
+- `AUX. TRASLADO CIUDAD/ AUX. RODAMIENTO <DD> <MES>/<AA>`
+- `HORAS OPERADOR`
+- `BONOS OPERADOR NO PRESTACIONAL`
+- `HOSPEDAJE`
+- `GASTOS REPRESENTACION`
+- `TRANSPORTE`
+- `VIATICOS NO SALARIALES`
+- `DESCUENTOS`
+- `NOVEDADES`
 
-La lista exacta debe ajustarse al template real y mantenerse centralizada cuando el proceso madure.
+Notas de implementacion:
+
+- no se debe quemar `ENE/26` ni ningun otro mes o ano
+- las columnas dinamicas deben validarse por patron, no por literal exacto
+- la validacion debe normalizar tildes y mayusculas/minusculas
+- se acepta cabecera valida si los encabezados fijos esperados aparecen y las columnas dinamicas cumplen el patron
 
 ## Validacion de periodo
 
@@ -87,9 +112,22 @@ El mes y el ano objetivo deben quedar registrados en logs aunque en la primera v
 - cantidad de hojas detectadas
 - resultado por hoja:
   - cabecera valida o invalida
+  - fila de cabecera detectada
+  - fila de inicio de datos
   - quincena detectada
   - decision final sobre la hoja
 - resumen final del archivo
+
+## Contrato con el siguiente subflujo
+
+`SF_LeerNovedadesNominaHojasValidas` no debe volver a validar estructura. Debe consumir directamente las listas generadas por este subflujo usando el mismo indice en cada una.
+
+Ejemplo conceptual:
+
+- `gListaHojasNominaValidas[0] = 1RA QUINCENA`
+- `gListaFilasCabeceraNominaValidas[0] = 2`
+- `gListaFilasInicioDatosNominaValidas[0] = 3`
+- `gListaQuincenasNominaValidas[0] = 1RA QUINCENA`
 
 ## Manejo de errores
 
@@ -103,4 +141,4 @@ Seguir el mismo patron de los subflujos anteriores:
 
 ## Nota de evolucion
 
-La primera version puede usar heuristicas de texto sobre una muestra de la hoja. La lista definitiva de encabezados y la logica exacta de deteccion de quincena deben ajustarse contra el template real del cliente.
+La primera version ya no debe usar solo heuristicas genericas como `empleado` o `concepto`. Debe apoyarse en la cabecera real del template, aceptando variacion dinamica en las columnas que dependen de mes, ano y fecha de referencia.
