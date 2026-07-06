@@ -6,36 +6,129 @@ SET gEsErrorControlado TO False
 SET gArchivoNominaValido TO False
 SET gCantidadHojasArchivoActual TO 0
 SET gCabeceraNominaDetectada TO False
-
 Variables.CreateNewList List=> gListaHojasNominaValidas
 Variables.CreateNewList List=> gListaHojasNominaDescartadas
-
-BLOCK Error_ValidarEstructuraNovedadesNomina
-ON BLOCK ERROR all
+BLOCK 
+ON BLOCK ERROR
 SET gEstadoValidacionEstructuraNomina TO $'''ERROR'''
 SET gEsErrorControlado TO True
 THROW ERROR
 END
-    File.WriteText File: gArchivoLog TextToWrite: $'''Inicio validacion estructura novedades nomina | Archivo: %gNombreArchivoActual% | Mes: %pMesNominaObjetivo% | Ano: %pAnoNominaObjetivo% | Periodo: %pPeriodoNominaObjetivo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
-
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio validacion estructura novedades nomina | Archivo: %gNombreArchivoActual% | Mes: %pMesNominaObjetivo% | Ano: %pAnoNominaObjetivo% | Periodo: %pPeriodoNominaObjetivo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     IF IsEmpty(pPeriodoNominaObjetivo) THEN
         SET gMensajeError TO $'''No se definio el periodo objetivo de nomina para la corrida'''
         SET gEstadoValidacionEstructuraNomina TO $'''ERROR'''
         File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         EXIT FUNCTION
     END
-
-    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: pRutaArchivoActual Visible: False ReadOnly: True Instance=> ExcelInstance
-    Excel.GetWorksheets Instance: ExcelInstance Worksheets=> gHojasArchivoActual
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: gRutaArchivoActual Visible: False ReadOnly: True Instance=> ExcelInstance
+    Excel.GetAllWorksheets Instance: ExcelInstance Worksheets=> gHojasArchivoActual
     SET gCantidadHojasArchivoActual TO gHojasArchivoActual.Count
     File.WriteText File: gArchivoLog TextToWrite: $'''Cantidad hojas archivo nomina | %gCantidadHojasArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
-
     LOOP FOREACH CurrentSheet IN gHojasArchivoActual
-        Excel.ActivateWorksheet Instance: ExcelInstance Name: CurrentSheet
-        Excel.ReadFromExcel.ReadCells Instance: ExcelInstance StartColumn: $'''A''' StartRow: 1 EndColumn: $'''H''' EndRow: 12 FirstLineIsHeader: False ReadAsText: True CellRange=> gMuestraHojaActual
+        Excel.SetActiveWorksheet.ActivateWorksheetByName Instance: ExcelInstance Name: CurrentSheet
+        Excel.ReadFromExcel.ReadCells Instance: ExcelInstance StartColumn: $'''A''' StartRow: 1 EndColumn: $'''Z''' EndRow: 4 GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues FirstLineIsHeader: False RangeValue=> gMuestraHojaActual
+        DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG muestra hoja | Hoja: %CurrentSheet% | Valor bruto: %gMuestraHojaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Scripting.RunPowershellScript.RunScript Script: $'''$nombreHoja = \"%CurrentSheet%\"
+$texto = @\"
+%gMuestraHojaActual%
+\"@
+ 
+ function Normalizar-Texto([string]$valor) {
+      if ([string]::IsNullOrWhiteSpace($valor)) {
+          return \"\"
+      }
 
-        Scripting.RunPowershellScript.RunScript Script: $'''$nombreHoja = "%CurrentSheet%"
-$texto = @"%gMuestraHojaActual%"@
+      $textoFormD = $valor.Normalize([Text.NormalizationForm]::FormD)
+      $sb = New-Object System.Text.StringBuilder
+
+      foreach ($char in $textoFormD.ToCharArray()) {
+          $unicodeCategory = [Globalization.CharUnicodeInfo]::GetUnicodeCategory($char)
+          if ($unicodeCategory -ne [Globalization.UnicodeCategory]::NonSpacingMark) {
+              [void]$sb.Append($char)
+          }
+      }
+
+      return $sb.ToString().ToLowerInvariant()
+  }
+
+  $hojaNormalizada = Normalizar-Texto $nombreHoja
+  $contenidoNormalizado = Normalizar-Texto $texto
+
+  $quincenaDetectada = \"NO_DETECTADA\"
+  if ($hojaNormalizada.Contains(\"1ra quincena\")) {
+      $quincenaDetectada = \"1RA QUINCENA\"
+  }
+  elseif ($hojaNormalizada.Contains(\"2da quincena\")) {
+      $quincenaDetectada = \"2DA QUINCENA\"
+  }
+
+   $requiredFixedHeaders = @(
+      \"ciudad\",
+      \"nombre\",
+      \"cedula de ciudadania\",
+      \"area\",
+      \"sueldo\",
+      \"aux. extralegal\",
+      \"novedades\"
+  )
+
+  $optionalHeaders = @(
+      \"aux. traslado ciudad/ aux. rodamiento\",
+      \"horas operador\",
+      \"bonos operador no prestacional\",
+      \"hospedaje\",
+      \"gastos representacion\",
+      \"transporte\",
+      \"viaticos no salariales\",
+      \"descuentos\"
+  )
+
+  $requiredFixedMatches = 0
+  foreach ($requiredHeader in $requiredFixedHeaders) {
+      if ($contenidoNormalizado.Contains($requiredHeader)) {
+          $requiredFixedMatches++
+      }
+  }
+
+  $optionalMatches = 0
+  foreach ($optionalHeader in $optionalHeaders) {
+      if ($contenidoNormalizado.Contains($optionalHeader)) {
+          $optionalMatches++
+      }
+  }
+
+  $cabeceraValida = $false
+  if ($requiredFixedMatches -eq $requiredFixedHeaders.Count -and $optionalMatches -ge 1) {
+      $cabeceraValida = $true
+  }
+
+  $hojaValida = $false
+  if ($cabeceraValida) {
+      if (\"%pPeriodoNominaObjetivo%\" -eq \"MES_COMPLETO\") {
+          if ($quincenaDetectada -ne \"NO_DETECTADA\") {
+              $hojaValida = $true
+          }
+      }
+      elseif (\"%pPeriodoNominaObjetivo%\" -eq $quincenaDetectada) {
+          $hojaValida = $true
+      }
+  }
+
+  [Console]::WriteLine($cabeceraValida.ToString())
+  [Console]::WriteLine($quincenaDetectada)
+  [Console]::WriteLine($hojaValida.ToString())
+<#  
+$nombreHoja = \"%CurrentSheet%\"
+$texto = @\"
+%gMuestraHojaActual%
+\"@
+[Console]::WriteLine(\"True\")
+[Console]::WriteLine(\"1RA QUINCENA\")
+[Console]::WriteLine(\"True\")
+ 
+
 $normalizadoHoja = $nombreHoja.Normalize([Text.NormalizationForm]::FormD)
 $normalizadoTexto = $texto.Normalize([Text.NormalizationForm]::FormD)
 $sbHoja = New-Object System.Text.StringBuilder
@@ -58,42 +151,151 @@ foreach ($char in $normalizadoTexto.ToCharArray()) {
 $hoja = $sbHoja.ToString().ToLowerInvariant()
 $contenido = $sbTexto.ToString().ToLowerInvariant()
 
+$requiredFixedHeaders = @(
+    \"ciudad\",
+    \"nombre\",
+    \"cedula de ciudadania\",
+    \"area\",
+    \"horas operador\",
+    \"bonos operador no prestacional\",
+    \"hospedaje\",
+    \"gastos representacion\",
+    \"transporte\",
+    \"viaticos no salariales\",
+    \"descuentos\",
+    \"novedades\"
+)
+
+$requiredFixedMatches = 0
+foreach ($requiredHeader in $requiredFixedHeaders) {
+    if ($contenido.Contains($requiredHeader)) {
+        $requiredFixedMatches++
+    }
+}
+
+$hasSueldoHeader = $contenido -match \'sueldo\\s+[a-z]{3}/\\d{2}\'
+$hasAuxExtralegalHeader = $contenido -match \'aux\\.?\\s*extralegal\\s+[a-z]{3}/\\d{2}\'
+$hasAuxTrasladoHeader = $contenido -match \'aux\\.?\\s*traslado ciudad/\\s*aux\\.?\\s*rodamiento\\s+\\d{2}\\s+[a-z]{3}/\\d{2}\'
+
 $cabeceraValida = $false
-if (($contenido.Contains("empleado") -or $contenido.Contains("nombre")) -and ($contenido.Contains("novedad") -or $contenido.Contains("concepto"))) {
+if ($requiredFixedMatches -ge 10 -and $hasSueldoHeader -and $hasAuxExtralegalHeader -and $hasAuxTrasladoHeader) {
     $cabeceraValida = $true
 }
 
-$quincenaDetectada = "NO_DETECTADA"
-if ($hoja.Contains("1ra quincena") -or $contenido.Contains("1ra quincena") -or $contenido.Contains("primera quincena")) {
-    $quincenaDetectada = "1RA QUINCENA"
+$quincenaDetectada = \"NO_DETECTADA\"
+if ($hoja.Contains(\"1ra quincena\") -or $contenido.Contains(\"1ra quincena\") -or $contenido.Contains(\"primera quincena\")) {
+    $quincenaDetectada = \"1RA QUINCENA\"
 }
-elseif ($hoja.Contains("2da quincena") -or $contenido.Contains("2da quincena") -or $contenido.Contains("segunda quincena")) {
-    $quincenaDetectada = "2DA QUINCENA"
+elseif ($hoja.Contains(\"2da quincena\") -or $contenido.Contains(\"2da quincena\") -or $contenido.Contains(\"segunda quincena\")) {
+    $quincenaDetectada = \"2DA QUINCENA\"
 }
 
 $hojaValida = $false
 if ($cabeceraValida) {
-    if ("%pPeriodoNominaObjetivo%" -eq "MES_COMPLETO") {
-        if ($quincenaDetectada -ne "NO_DETECTADA") { $hojaValida = $true }
+    if (\"%pPeriodoNominaObjetivo%\" -eq \"MES_COMPLETO\") {
+        if ($quincenaDetectada -ne \"NO_DETECTADA\") { $hojaValida = $true }
     }
-    elseif ("%pPeriodoNominaObjetivo%" -eq $quincenaDetectada) {
+    elseif (\"%pPeriodoNominaObjetivo%\" -eq $quincenaDetectada) {
         $hojaValida = $true
     }
 }
 
 [Console]::WriteLine($cabeceraValida)
 [Console]::WriteLine($quincenaDetectada)
-[Console]::WriteLine($hojaValida)''' ScriptOutput=> gResultadoValidacionHojaNomina
+[Console]::WriteLine($hojaValida)
+$nombreHoja = \"%CurrentSheet%\"
+$texto = @\"%gMuestraHojaActual%\"@
+$normalizadoHoja = $nombreHoja.Normalize([Text.NormalizationForm]::FormD)
+$normalizadoTexto = $texto.Normalize([Text.NormalizationForm]::FormD)
+$sbHoja = New-Object System.Text.StringBuilder
+$sbTexto = New-Object System.Text.StringBuilder
 
+foreach ($char in $normalizadoHoja.ToCharArray()) {
+    $unicodeCategory = [Globalization.CharUnicodeInfo]::GetUnicodeCategory($char)
+    if ($unicodeCategory -ne [Globalization.UnicodeCategory]::NonSpacingMark) {
+        [void]$sbHoja.Append($char)
+    }
+}
+
+foreach ($char in $normalizadoTexto.ToCharArray()) {
+    $unicodeCategory = [Globalization.CharUnicodeInfo]::GetUnicodeCategory($char)
+    if ($unicodeCategory -ne [Globalization.UnicodeCategory]::NonSpacingMark) {
+        [void]$sbTexto.Append($char)
+    }
+}
+
+$hoja = $sbHoja.ToString().ToLowerInvariant()
+$contenido = $sbTexto.ToString().ToLowerInvariant()
+
+$requiredFixedHeaders = @(
+    \"ciudad\",
+    \"nombre\",
+    \"cedula de ciudadania\",
+    \"area\",
+    \"horas operador\",
+    \"bonos operador no prestacional\",
+    \"hospedaje\",
+    \"gastos representacion\",
+    \"transporte\",
+    \"viaticos no salariales\",
+    \"descuentos\",
+    \"novedades\"
+)
+
+$requiredFixedMatches = 0
+foreach ($requiredHeader in $requiredFixedHeaders) {
+    if ($contenido.Contains($requiredHeader)) {
+        $requiredFixedMatches++
+    }
+}
+
+$hasSueldoHeader = $contenido -match \'sueldo\\s+[a-z]{3}/\\d{2}\'
+$hasAuxExtralegalHeader = $contenido -match \'aux\\.?\\s*extralegal\\s+[a-z]{3}/\\d{2}\'
+$hasAuxTrasladoHeader = $contenido -match \'aux\\.?\\s*traslado ciudad/\\s*aux\\.?\\s*rodamiento\\s+\\d{2}\\s+[a-z]{3}/\\d{2}\'
+
+$cabeceraValida = $false
+if ($requiredFixedMatches -ge 10 -and $hasSueldoHeader -and $hasAuxExtralegalHeader -and $hasAuxTrasladoHeader) {
+    $cabeceraValida = $true
+}
+
+$quincenaDetectada = \"NO_DETECTADA\"
+if ($hoja.Contains(\"1ra quincena\") -or $contenido.Contains(\"1ra quincena\") -or $contenido.Contains(\"primera quincena\")) {
+    $quincenaDetectada = \"1RA QUINCENA\"
+}
+elseif ($hoja.Contains(\"2da quincena\") -or $contenido.Contains(\"2da quincena\") -or $contenido.Contains(\"segunda quincena\")) {
+    $quincenaDetectada = \"2DA QUINCENA\"
+}
+
+$hojaValida = $false
+if ($cabeceraValida) {
+    if (\"%pPeriodoNominaObjetivo%\" -eq \"MES_COMPLETO\") {
+        if ($quincenaDetectada -ne \"NO_DETECTADA\") { $hojaValida = $true }
+    }
+    elseif (\"%pPeriodoNominaObjetivo%\" -eq $quincenaDetectada) {
+        $hojaValida = $true
+    }
+}
+
+[Console]::WriteLine($cabeceraValida)
+[Console]::WriteLine($quincenaDetectada)
+[Console]::WriteLine($hojaValida)
+#>''' ScriptOutput=> gResultadoValidacionHojaNomina
         Text.SplitText.Split Text: gResultadoValidacionHojaNomina StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gPartesValidacionHojaNomina
+        IF gPartesValidacionHojaNomina.Count < 3 THEN
+            SET gCabeceraHojaActual TO $'''False'''
+            SET gQuincenaHojaActual TO $'''NO_DETECTADA'''
+            SET gHojaValidaActual TO $'''False'''
+        ELSE
+            SET gCabeceraHojaActual TO gPartesValidacionHojaNomina[0]
+            SET gQuincenaHojaActual TO gPartesValidacionHojaNomina[1]
+            SET gHojaValidaActual TO gPartesValidacionHojaNomina[2]
+        END
         SET gCabeceraHojaActual TO gPartesValidacionHojaNomina[0]
         SET gQuincenaHojaActual TO gPartesValidacionHojaNomina[1]
         SET gHojaValidaActual TO gPartesValidacionHojaNomina[2]
-
         IF gCabeceraHojaActual = $'''True''' THEN
             SET gCabeceraNominaDetectada TO True
         END
-
         IF gHojaValidaActual = $'''True''' THEN
             Variables.AddItemToList Item: CurrentSheet List: gListaHojasNominaValidas
             File.WriteText File: gArchivoLog TextToWrite: $'''Hoja valida | %CurrentSheet% | Quincena: %gQuincenaHojaActual% | Cabecera: %gCabeceraHojaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
@@ -102,22 +304,19 @@ if ($cabeceraValida) {
             File.WriteText File: gArchivoLog TextToWrite: $'''Hoja descartada | %CurrentSheet% | Quincena: %gQuincenaHojaActual% | Cabecera: %gCabeceraHojaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         END
     END
-
     IF gListaHojasNominaValidas.Count = 0 THEN
         SET gArchivoNominaValido TO False
         SET gEstadoValidacionEstructuraNomina TO $'''SIN_HOJAS_VALIDAS'''
         File.WriteText File: gArchivoLog TextToWrite: $'''Archivo nomina sin hojas validas para el periodo objetivo''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
-        Excel.CloseExcel.CloseAndSave Instance: ExcelInstance SaveDocument: False
+        Excel.CloseExcel.Close Instance: ExcelInstance
         EXIT FUNCTION
     END
-
     SET gArchivoNominaValido TO True
     SET gEstadoValidacionEstructuraNomina TO $'''OK'''
     File.WriteText File: gArchivoLog TextToWrite: $'''Resumen validacion nomina | Hojas validas: %gListaHojasNominaValidas.Count% | Hojas descartadas: %gListaHojasNominaDescartadas.Count% | Cabecera detectada: %gCabeceraNominaDetectada%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
-    Excel.CloseExcel.CloseAndSave Instance: ExcelInstance SaveDocument: False
+    Excel.CloseExcel.Close Instance: ExcelInstance
     File.WriteText File: gArchivoLog TextToWrite: $'''Validacion estructura novedades nomina completada correctamente''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
 END
-
 IF $'''gEsErrorControlado''' = True THEN
     ERROR => gMensajeError
     File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
