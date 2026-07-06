@@ -1,0 +1,111 @@
+# SF_LeerNovedadesNominaHojasValidas
+# Lee hojas validas de nomina y arma una lista cruda en texto sin resolver aun conceptos ni empleados
+SET gEstadoLecturaNovedadesNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalHojasLeidasNomina TO 0
+SET gTotalRegistrosNominaLeidos TO 0
+SET gHayRegistrosNominaLeidos TO False
+SET gIndiceHojaNominaActual TO 0
+Variables.CreateNewList List=> gListaRegistrosNominaCrudos
+BLOCK 
+ON BLOCK ERROR
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio lectura novedades nomina | Archivo: %gNombreArchivoActual% | Hojas validas: %gListaHojasNominaValidas.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaHojasNominaValidas.Count = 0 THEN
+        SET gEstadoLecturaNovedadesNomina TO $'''SIN_REGISTROS'''
+        SET gMensajeError TO $'''No hay hojas validas de nomina para leer'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_REGISTROS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: gRutaArchivoActual Visible: False ReadOnly: True Instance=> ExcelInstance
+    LOOP FOREACH CurrentItem IN gListaHojasNominaValidas
+        Variables.IncreaseVariable Value: gTotalHojasLeidasNomina IncrementValue: 1
+        SET gHojaNominaActual TO gListaHojasNominaValidas[gIndiceHojaNominaActual]
+        SET gFilaCabeceraActual TO gListaFilasCabeceraNominaValidas[gIndiceHojaNominaActual]
+        SET gFilaInicioDatosActual TO gListaFilasInicioDatosNominaValidas[gIndiceHojaNominaActual]
+        SET gQuincenaHojaActual TO gListaQuincenasNominaValidas[gIndiceHojaNominaActual]
+        SET gColumnaNovedadesActual TO gListaColumnasNovedadesNominaValidas[gIndiceHojaNominaActual]
+        File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG columna novedades actual | Hoja: %gHojaNominaActual% | Columna: [%gColumnaNovedadesActual%]''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        IF IsEmpty(gColumnaNovedadesActual) THEN
+            SET gMensajeError TO $'''La columna de novedades para la hoja actual esta vacia'''
+        END
+        SET gFilaActual TO gFilaInicioDatosActual
+        SET gConsecutivoFilasVacias TO 0
+        SET gRegistrosLeidosHojaActual TO 0
+        SET gSeguirLeyendoHojaActual TO True
+        Excel.SetActiveWorksheet.ActivateWorksheetByName Instance: ExcelInstance Name: gHojaNominaActual
+        File.WriteText File: gArchivoLog TextToWrite: $'''Inicio lectura hoja nomina | Hoja: %gHojaNominaActual% | Quincena: %gQuincenaHojaActual% | Fila cabecera: %gFilaCabeceraActual% | Fila inicio datos:
+  %gFilaInicioDatosActual% | Columna novedades: %gColumnaNovedadesActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''Inicio lectura hoja nomina | Hoja: %gHojaNominaActual% | Quincena: %gQuincenaHojaActual% | Fila cabecera: %gFilaCabeceraActual% | Fila inicio datos: %gFilaInicioDatosActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        LOOP WHILE gSeguirLeyendoHojaActual = True
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gCiudadFilaActual
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''B''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gNombreFilaActual
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''C''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gCedulaFilaActual
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''D''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gAreaFilaActual
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: gColumnaNovedadesActual StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gNovedadesFilaActual
+            DISABLE Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''Q''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gNovedadesFilaActual
+            Scripting.RunPowershellScript.RunScript Script: $'''$nombre = @\'
+%gNombreFilaActual%
+\'@
+$cedula = @\'
+%gCedulaFilaActual%
+\'@
+$novedades = @\'
+%gNovedadesFilaActual%
+\'@
+
+function Tiene-Contenido([string]$valor) {
+    if ($null -eq $valor) {
+        return $false
+    }
+
+    $limpio = $valor.Replace([char]160, \' \').Trim()
+    return -not [string]::IsNullOrWhiteSpace($limpio)
+}
+
+if ((Tiene-Contenido $nombre) -or (Tiene-Contenido $cedula) -or (Tiene-Contenido $novedades)) {
+    [Console]::WriteLine(\"True\")
+}
+else {
+    [Console]::WriteLine(\"False\")
+}''' ScriptOutput=> gResultadoFilaUtilNomina
+            Text.SplitText.Split Text: gResultadoFilaUtilNomina StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gPartesFilaUtilNomina
+            SET gEsFilaUtil TO gPartesFilaUtilNomina[0]
+            IF gEsFilaUtil = $'''True''' THEN
+                SET gConsecutivoFilasVacias TO 0
+                SET gRegistroNominaCrudoTexto TO $'''%gNombreArchivoActual%|%gHojaNominaActual%|%gQuincenaHojaActual%|%gFilaActual%|%gCiudadFilaActual%|%gNombreFilaActual%|%gCedulaFilaActual%|%gAreaFilaActual%|%gNovedadesFilaActual%'''
+                Variables.AddItemToList Item: gRegistroNominaCrudoTexto List: gListaRegistrosNominaCrudos
+                Variables.IncreaseVariable Value: gRegistrosLeidosHojaActual IncrementValue: 1
+                Variables.IncreaseVariable Value: gTotalRegistrosNominaLeidos IncrementValue: 1
+                File.WriteText File: gArchivoLog TextToWrite: $'''Fila util nomina | Hoja: %gHojaNominaActual% | Fila: %gFilaActual% | Nombre: %gNombreFilaActual% | Cedula: %gCedulaFilaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            ELSE
+                Variables.IncreaseVariable Value: gConsecutivoFilasVacias IncrementValue: 1
+            END
+            IF gConsecutivoFilasVacias >= 3 THEN
+                SET gSeguirLeyendoHojaActual TO False
+            ELSE
+                Variables.IncreaseVariable Value: gFilaActual IncrementValue: 1
+            END
+        END
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen hoja nomina leida | Hoja: %gHojaNominaActual% | Registros leidos: %gRegistrosLeidosHojaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Variables.IncreaseVariable Value: gIndiceHojaNominaActual IncrementValue: 1
+    END
+    Excel.CloseExcel.Close Instance: ExcelInstance
+    IF gTotalRegistrosNominaLeidos = 0 THEN
+        SET gEstadoLecturaNovedadesNomina TO $'''SIN_REGISTROS'''
+        SET gHayRegistrosNominaLeidos TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Lectura novedades nomina finalizada sin registros utiles''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoLecturaNovedadesNomina TO $'''OK'''
+        SET gHayRegistrosNominaLeidos TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen lectura novedades nomina | Hojas leidas: %gTotalHojasLeidasNomina% | Registros leidos: %gTotalRegistrosNominaLeidos%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END
