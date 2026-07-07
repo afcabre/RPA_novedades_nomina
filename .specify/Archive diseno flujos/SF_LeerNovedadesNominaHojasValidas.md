@@ -34,6 +34,9 @@ Por tanto:
 - `gListaFilasCabeceraNominaValidas` `List`
 - `gListaFilasInicioDatosNominaValidas` `List`
 - `gListaQuincenasNominaValidas` `List`
+- `gListaCabecerasNominaValidas` `List`
+- `gListaColumnasSueldoBaseNominaValidas` `List`
+- `gListaColumnasAuxExtralegalBaseNominaValidas` `List`
 - `gArchivoLog` `Text`
 - `pMesNominaObjetivo` `Text`
 - `pAnoNominaObjetivo` `Text`
@@ -72,6 +75,9 @@ Por tanto:
    - fila de cabecera
    - fila de inicio de datos
    - quincena detectada
+   - cabecera real de la hoja
+   - columna de sueldo base
+   - columna de auxilio extralegal base
 6. activar la hoja actual
 7. iniciar lectura desde `gFilaInicioDatosActual`
 8. leer filas de datos una a una
@@ -93,6 +99,9 @@ Se espera recibir listas paralelas por indice:
 - `gListaFilasCabeceraNominaValidas`
 - `gListaFilasInicioDatosNominaValidas`
 - `gListaQuincenasNominaValidas`
+- `gListaCabecerasNominaValidas`
+- `gListaColumnasSueldoBaseNominaValidas`
+- `gListaColumnasAuxExtralegalBaseNominaValidas`
 
 Ejemplo:
 
@@ -100,6 +109,9 @@ Ejemplo:
 - `gListaFilasCabeceraNominaValidas[0] = 2`
 - `gListaFilasInicioDatosNominaValidas[0] = 3`
 - `gListaQuincenasNominaValidas[0] = 1RA QUINCENA`
+- `gListaCabecerasNominaValidas[0] = <texto cabecera real>`
+- `gListaColumnasSueldoBaseNominaValidas[0] = F`
+- `gListaColumnasAuxExtralegalBaseNominaValidas[0] = H`
 
 ## Regla de lectura de filas
 
@@ -131,8 +143,9 @@ Campos sugeridos:
 - `NombreEmpleado`
 - `CedulaFuente`
 - `Area`
-- `SueldoTexto`
-- `AuxExtralegalTexto`
+- `SueldoBaseTexto`
+- `AuxExtralegalBaseTexto`
+- `CabeceraHojaTexto`
 - `AuxTrasladoORodamientoTexto`
 - `HorasOperadorTexto`
 - `BonosTexto`
@@ -143,6 +156,12 @@ Campos sugeridos:
 - `DescuentosTexto`
 - `NovedadesTexto`
 - `FilaCrudaCompleta`
+
+Notas:
+
+- `SueldoBaseTexto` y `AuxExtralegalBaseTexto` deben preservarse como contexto fijo del empleado
+- estos valores no son conceptos registrables en esta fase
+- su utilidad es servir como base de control, validacion o estimacion para conceptos posteriores
 
 ## Que no debe hacer este subflujo
 

@@ -10,7 +10,9 @@ SET gIndiceHojaNominaActual TO 0
 Variables.CreateNewList List=> gListaRegistrosNominaCrudos
 BLOCK 
 ON BLOCK ERROR
-    THROW ERROR
+SET gEstadoLecturaNovedadesNomina TO $'''ERROR'''
+SET gEsErrorControlado TO True
+THROW ERROR
 END
     File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
 Inicio lectura novedades nomina | Archivo: %gNombreArchivoActual% | Hojas validas: %gListaHojasNominaValidas.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
@@ -18,6 +20,12 @@ Inicio lectura novedades nomina | Archivo: %gNombreArchivoActual% | Hojas valida
         SET gEstadoLecturaNovedadesNomina TO $'''SIN_REGISTROS'''
         SET gMensajeError TO $'''No hay hojas validas de nomina para leer'''
         File.WriteText File: gArchivoLog TextToWrite: $'''SIN_REGISTROS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF gListaFilasCabeceraNominaValidas.Count <> gListaHojasNominaValidas.Count OR gListaFilasInicioDatosNominaValidas.Count <> gListaHojasNominaValidas.Count OR gListaQuincenasNominaValidas.Count <> gListaHojasNominaValidas.Count OR gListaColumnasNovedadesNominaValidas.Count <> gListaHojasNominaValidas.Count OR gListaCabecerasNominaValidas.Count <> gListaHojasNominaValidas.Count THEN
+        SET gEstadoLecturaNovedadesNomina TO $'''ERROR'''
+        SET gMensajeError TO $'''Las listas de hojas validas de nomina no tienen la misma cantidad de elementos'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         EXIT FUNCTION
     END
     Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: gRutaArchivoActual Visible: False ReadOnly: True Instance=> ExcelInstance
@@ -28,25 +36,30 @@ Inicio lectura novedades nomina | Archivo: %gNombreArchivoActual% | Hojas valida
         SET gFilaInicioDatosActual TO gListaFilasInicioDatosNominaValidas[gIndiceHojaNominaActual]
         SET gQuincenaHojaActual TO gListaQuincenasNominaValidas[gIndiceHojaNominaActual]
         SET gColumnaNovedadesActual TO gListaColumnasNovedadesNominaValidas[gIndiceHojaNominaActual]
-        File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG columna novedades actual | Hoja: %gHojaNominaActual% | Columna: [%gColumnaNovedadesActual%]''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        SET gCabeceraTextoActual TO gListaCabecerasNominaValidas[gIndiceHojaNominaActual]
+        DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG columna novedades actual | Hoja: %gHojaNominaActual% | Columna: [%gColumnaNovedadesActual%]''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         IF IsEmpty(gColumnaNovedadesActual) THEN
             SET gMensajeError TO $'''La columna de novedades para la hoja actual esta vacia'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Hoja: %gHojaNominaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            SET gEstadoLecturaNovedadesNomina TO $'''ERROR'''
+            Excel.CloseExcel.Close Instance: ExcelInstance
+            EXIT FUNCTION
         END
         SET gFilaActual TO gFilaInicioDatosActual
         SET gConsecutivoFilasVacias TO 0
         SET gRegistrosLeidosHojaActual TO 0
         SET gSeguirLeyendoHojaActual TO True
         Excel.SetActiveWorksheet.ActivateWorksheetByName Instance: ExcelInstance Name: gHojaNominaActual
-        File.WriteText File: gArchivoLog TextToWrite: $'''Inicio lectura hoja nomina | Hoja: %gHojaNominaActual% | Quincena: %gQuincenaHojaActual% | Fila cabecera: %gFilaCabeceraActual% | Fila inicio datos:
-  %gFilaInicioDatosActual% | Columna novedades: %gColumnaNovedadesActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
-        DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''Inicio lectura hoja nomina | Hoja: %gHojaNominaActual% | Quincena: %gQuincenaHojaActual% | Fila cabecera: %gFilaCabeceraActual% | Fila inicio datos: %gFilaInicioDatosActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        File.WriteText File: gArchivoLog TextToWrite: $'''Inicio lectura hoja nomina | Hoja: %gHojaNominaActual% | Quincena: %gQuincenaHojaActual% | Fila cabecera: %gFilaCabeceraActual% | Fila inicio datos: %gFilaInicioDatosActual% | Columna novedades: %gColumnaNovedadesActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         LOOP WHILE gSeguirLeyendoHojaActual = True
             Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gCiudadFilaActual
             Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''B''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gNombreFilaActual
             Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''C''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gCedulaFilaActual
             Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''D''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gAreaFilaActual
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''F''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gSueldoBaseFilaActual
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''H''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gAuxExtralegalBaseFilaActual
             Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: gColumnaNovedadesActual StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gNovedadesFilaActual
-            DISABLE Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''Q''' StartRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues CellValue=> gNovedadesFilaActual
+            Excel.ReadFromExcel.ReadCells Instance: ExcelInstance StartColumn: $'''A''' StartRow: gFilaActual EndColumn: $'''Z''' EndRow: gFilaActual GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues FirstLineIsHeader: False RangeValue=> gFilaCompletaTextoActual
             Scripting.RunPowershellScript.RunScript Script: $'''$nombre = @\'
 %gNombreFilaActual%
 \'@
@@ -76,7 +89,8 @@ else {
             SET gEsFilaUtil TO gPartesFilaUtilNomina[0]
             IF gEsFilaUtil = $'''True''' THEN
                 SET gConsecutivoFilasVacias TO 0
-                SET gRegistroNominaCrudoTexto TO $'''%gNombreArchivoActual%|%gHojaNominaActual%|%gQuincenaHojaActual%|%gFilaActual%|%gCiudadFilaActual%|%gNombreFilaActual%|%gCedulaFilaActual%|%gAreaFilaActual%|%gNovedadesFilaActual%'''
+                SET gRegistroNominaCrudoTexto TO $'''%gNombreArchivoActual%|%gHojaNominaActual%|%gQuincenaHojaActual%|%gFilaActual%|%gCiudadFilaActual%|%gNombreFilaActual%|%gCedulaFilaActual%|%gAreaFilaActual%|%gSueldoBaseFilaActual%|%gAuxExtralegalBaseFilaActual%|%gColumnaNovedadesActual%|%gNovedadesFilaActual%|%gCabeceraTextoActual%|%gFilaCompletaTextoActual%'''
+                DISABLE SET gRegistroNominaCrudoTexto TO $'''%gNombreArchivoActual%|%gHojaNominaActual%|%gQuincenaHojaActual%|%gFilaActual%|%gCiudadFilaActual%|%gNombreFilaActual%|%gCedulaFilaActual%|%gAreaFilaActual%|%gSueldoBaseFilaActual%|%gAuxExtralegalBaseFilaActual%|%gColumnaNovedadesActual%|%gNovedadesFilaActual%|%gCabeceraTextoActual%'''
                 Variables.AddItemToList Item: gRegistroNominaCrudoTexto List: gListaRegistrosNominaCrudos
                 Variables.IncreaseVariable Value: gRegistrosLeidosHojaActual IncrementValue: 1
                 Variables.IncreaseVariable Value: gTotalRegistrosNominaLeidos IncrementValue: 1

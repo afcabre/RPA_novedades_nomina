@@ -15,6 +15,7 @@ Variables.CreateNewList List=> gListaFilasInicioDatosNominaValidas
 Variables.CreateNewList List=> gListaQuincenasNominaValidas
 Variables.CreateNewList List=> gListaHojasNominaDescartadas
 Variables.CreateNewList List=> gListaColumnasNovedadesNominaValidas
+Variables.CreateNewList List=> gListaCabecerasNominaValidas
 BLOCK Error_ValidarEstructuraNovedadesNomina
 ON BLOCK ERROR
 SET gEstadoValidacionEstructuraNomina TO $'''ERROR'''
@@ -37,10 +38,11 @@ END
         SET gFilaCabeceraHojaActual TO 0
         SET gFilaInicioDatosHojaActual TO 0
         SET gColumnaNovedadesHojaActual TO $''''''
-        SET gMotivoDescarteHojaActual TO $'''\'\'\'\'\'\''''
+        SET gCabeceraTextoHojaActual TO $''''''
+        SET gMotivoDescarteHojaActual TO $''''''
         Excel.SetActiveWorksheet.ActivateWorksheetByName Instance: ExcelInstance Name: CurrentSheet
         Excel.ReadFromExcel.ReadCells Instance: ExcelInstance StartColumn: $'''A''' StartRow: 1 EndColumn: $'''Z''' EndRow: 4 GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues FirstLineIsHeader: False RangeValue=> gMuestraHojaActual
-        File.WriteText File: gArchivoLog TextToWrite: $'''   | DEBUG muestra hoja | Hoja: %CurrentSheet% | Valor bruto: %gMuestraHojaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''   | DEBUG muestra hoja | Hoja: %CurrentSheet% | Valor bruto: %gMuestraHojaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         Excel.ReadFromExcel.ReadCells Instance: ExcelInstance StartColumn: $'''A''' StartRow: 1 EndColumn: $'''Z''' EndRow: 1 GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues FirstLineIsHeader: False RangeValue=> gCabeceraFila1Actual
         Excel.ReadFromExcel.ReadCells Instance: ExcelInstance StartColumn: $'''A''' StartRow: 2 EndColumn: $'''Z''' EndRow: 2 GetCellContentsMode: Excel.GetCellContentsMode.FormattedTextValues FirstLineIsHeader: False RangeValue=> gCabeceraFila2Actual
         Scripting.RunPowershellScript.RunScript Script: $'''$nombreHoja = \"%CurrentSheet%\"
@@ -145,20 +147,23 @@ elseif (Es-Cabecera-Nomina $fila2) {
 }
 
 $cabeceraValida = $false
-  $filaInicioDatosDetectada = 0
-  $columnaNovedadesDetectada = \"\"
+$filaInicioDatosDetectada = 0
+$columnaNovedadesDetectada = \"\"
+$cabeceraTextoDetectada = \"\"
 
-  if ($filaCabeceraDetectada -gt 0) {
+if ($filaCabeceraDetectada -gt 0) {
       $cabeceraValida = $true
       $filaInicioDatosDetectada = $filaCabeceraDetectada + 1
 
       if ($filaCabeceraDetectada -eq 1) {
+          $cabeceraTextoDetectada = $fila1
           $columnaNovedadesDetectada = Obtener-Columna-Novedades $fila1
       }
       elseif ($filaCabeceraDetectada -eq 2) {
+          $cabeceraTextoDetectada = $fila2
           $columnaNovedadesDetectada = Obtener-Columna-Novedades $fila2
       }
-  }
+}
 
 $hojaValida = $false
 if ($cabeceraValida) {
@@ -177,16 +182,18 @@ if ($cabeceraValida) {
 [Console]::WriteLine($hojaValida.ToString())
 [Console]::WriteLine($filaCabeceraDetectada.ToString())
 [Console]::WriteLine($filaInicioDatosDetectada.ToString())
-[Console]::WriteLine($columnaNovedadesDetectada)''' ScriptOutput=> gResultadoValidacionHojaNomina
-        File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG validacion hoja raw | Hoja: %CurrentSheet% | Resultado: %gResultadoValidacionHojaNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+[Console]::WriteLine($columnaNovedadesDetectada)
+[Console]::WriteLine($cabeceraTextoDetectada)''' ScriptOutput=> gResultadoValidacionHojaNomina
+        DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG validacion hoja raw | Hoja: %CurrentSheet% | Resultado: %gResultadoValidacionHojaNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         Text.SplitText.Split Text: gResultadoValidacionHojaNomina StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gPartesValidacionHojaNomina
-        IF gPartesValidacionHojaNomina.Count < 6 THEN
+        IF gPartesValidacionHojaNomina.Count < 7 THEN
             SET gCabeceraHojaActual TO $'''False'''
             SET gQuincenaHojaActual TO $'''NO_DETECTADA'''
             SET gHojaValidaActual TO $'''False'''
             SET gFilaCabeceraHojaActual TO 0
             SET gFilaInicioDatosHojaActual TO 0
             SET gColumnaNovedadesHojaActual TO $''''''
+            SET gCabeceraTextoHojaActual TO $''''''
         ELSE
             SET gCabeceraHojaActual TO gPartesValidacionHojaNomina[0]
             SET gQuincenaHojaActual TO gPartesValidacionHojaNomina[1]
@@ -194,20 +201,26 @@ if ($cabeceraValida) {
             SET gFilaCabeceraHojaActual TO gPartesValidacionHojaNomina[3]
             SET gFilaInicioDatosHojaActual TO gPartesValidacionHojaNomina[4]
             SET gColumnaNovedadesHojaActual TO gPartesValidacionHojaNomina[5]
+            SET gCabeceraTextoHojaActual TO gPartesValidacionHojaNomina[6]
+            Text.Trim Text: gCabeceraHojaActual TrimOption: Text.TrimOption.Both TrimmedText=> TrimmedText
+            Text.Trim Text: gQuincenaHojaActual TrimOption: Text.TrimOption.Both TrimmedText=> TrimmedText
+            Text.Trim Text: gHojaValidaActual TrimOption: Text.TrimOption.Both TrimmedText=> TrimmedText
+            Text.Trim Text: gColumnaNovedadesHojaActual TrimOption: Text.TrimOption.Both TrimmedText=> TrimmedText
         END
         IF gCabeceraHojaActual = $'''True''' THEN
             SET gCabeceraNominaDetectada TO True
         END
-        IF gHojaValidaActual = $'''False''' THEN
+        IF gHojaValidaActual <> $'''True''' THEN
+            SET gMotivoDescarteHojaActual TO $'''Periodo no coincide con la corrida'''
+            Variables.IncreaseVariable Value: gTotalHojasDescartadasPorPeriodo IncrementValue: 1
             IF gCabeceraHojaActual = $'''False''' THEN
                 SET gMotivoDescarteHojaActual TO $'''Estructura invalida'''
+                Variables.DecreaseVariable Value: gTotalHojasDescartadasPorPeriodo DecrementValue: 1
                 Variables.IncreaseVariable Value: gTotalHojasDescartadasPorEstructura IncrementValue: 1
             ELSE IF gQuincenaHojaActual = $'''NO_DETECTADA''' THEN
                 SET gMotivoDescarteHojaActual TO $'''Quincena no detectada'''
+                Variables.DecreaseVariable Value: gTotalHojasDescartadasPorPeriodo DecrementValue: 1
                 Variables.IncreaseVariable Value: gTotalHojasDescartadasPorQuincenaNoDetectada IncrementValue: 1
-            ELSE
-                SET gMotivoDescarteHojaActual TO $'''Periodo no coincide con la corrida'''
-                Variables.IncreaseVariable Value: gTotalHojasDescartadasPorPeriodo IncrementValue: 1
             END
         END
         IF gHojaValidaActual = $'''True''' THEN
@@ -216,9 +229,9 @@ if ($cabeceraValida) {
             Variables.AddItemToList Item: gFilaInicioDatosHojaActual List: gListaFilasInicioDatosNominaValidas
             Variables.AddItemToList Item: gQuincenaHojaActual List: gListaQuincenasNominaValidas
             Variables.AddItemToList Item: gColumnaNovedadesHojaActual List: gListaColumnasNovedadesNominaValidas
+            Variables.AddItemToList Item: gCabeceraTextoHojaActual List: gListaCabecerasNominaValidas
             File.WriteText File: gArchivoLog TextToWrite: $'''Hoja valida | %CurrentSheet% | Quincena: %gQuincenaHojaActual% | Cabecera: %gCabeceraHojaActual% | Fila cabecera: %gFilaCabeceraHojaActual% | Fila inicio
   datos: %gFilaInicioDatosHojaActual% | Columna novedades: %gColumnaNovedadesHojaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
-            DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''   | Hoja valida | %CurrentSheet% | Quincena: %gQuincenaHojaActual% | Cabecera: %gCabeceraHojaActual% | Fila cabecera: %gFilaCabeceraHojaActual% | Fila inicio datos: %gFilaInicioDatosHojaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         ELSE
             Variables.AddItemToList Item: CurrentSheet List: gListaHojasNominaDescartadas
             File.WriteText File: gArchivoLog TextToWrite: $'''   | Hoja descartada | %CurrentSheet% | Motivo: %gMotivoDescarteHojaActual% | Quincena: %gQuincenaHojaActual% | Cabecera: %gCabeceraHojaActual% | Fila cabecera:
