@@ -1,0 +1,69 @@
+{
+  "version": "1.0",
+  "rutaBaseConfiguracion": "C:\\Dev\\Aspraco\\config",
+  "archivoCatalogo": "catalogo_conceptos_nomina.json",
+  "catalogosNomina": [
+    {
+      "empresa": "MACOM RENTAL SAS",
+      "activo": true,
+      "conceptos": [
+        {
+          "conceptoFuenteNormalizado": "aux. traslado ciudad/ aux. rodamiento 01 ene/24",
+          "conceptoSistema": "AUXILIO DE RODAMIENTO",
+          "codigoSistema": "AUX_ROD_001",
+          "tipoRegistro": "DEVENGADO",
+          "activo": true,
+          "observaciones": "Equivalencia para rodamiento o traslado"
+        },
+        {
+          "conceptoFuenteNormalizado": "horas operador",
+          "conceptoSistema": "HORAS EXTRA OPERADOR",
+          "codigoSistema": "HEX_OP_001",
+          "tipoRegistro": "DEVENGADO",
+          "activo": true,
+          "observaciones": "Validar segun plantilla y periodo"
+        },
+        {
+          "conceptoFuenteNormalizado": "bonos operador no prestacional",
+          "conceptoSistema": "BONO NO PRESTACIONAL OPERADOR",
+          "codigoSistema": "BNP_OP_001",
+          "tipoRegistro": "DEVENGADO",
+          "activo": true,
+          "observaciones": "Aplicable a operadores"
+        },
+        {
+          "conceptoFuenteNormalizado": "gastos representacion",
+          "conceptoSistema": "GASTOS DE REPRESENTACION",
+          "codigoSistema": "GREP_001",
+          "tipoRegistro": "DEVENGADO",
+          "activo": true,
+          "observaciones": ""
+        },
+        {
+          "conceptoFuenteNormalizado": "transporte",
+          "conceptoSistema": "AUXILIO DE TRANSPORTE",
+          "codigoSistema": "TRANSP_001",
+          "tipoRegistro": "DEVENGADO",
+          "activo": true,
+          "observaciones": ""
+        },
+        {
+          "conceptoFuenteNormalizado": "viaticos no salariales",
+          "conceptoSistema": "VIATICOS NO SALARIALES",
+          "codigoSistema": "VIAT_NS_001",
+          "tipoRegistro": "DEVENGADO",
+          "activo": true,
+          "observaciones": ""
+        },
+        {
+          "conceptoFuenteNormalizado": "descuentos",
+          "conceptoSistema": "DESCUENTO GENERAL",
+          "codigoSistema": "DESC_GEN_001",
+          "tipoRegistro": "DEDUCCION",
+          "activo": true,
+          "observaciones": "Puede requerir resolucion posterior mas fina"
+        }
+      ]
+    }
+  ]
+}
