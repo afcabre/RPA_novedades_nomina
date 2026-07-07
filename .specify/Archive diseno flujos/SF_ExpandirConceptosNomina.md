@@ -33,7 +33,7 @@ Adicionalmente:
 - `SF_ValidarEstructuraNovedadesNomina` determina hojas validas y metadatos de cabecera
 - `SF_LeerNovedadesNominaHojasValidas` produce filas crudas de empleados
 - `SF_ExpandirConceptosNomina` convierte filas crudas en conceptos explicitos candidatos y preserva pendientes textuales
-- `SF_DetectarEventosDesdeNovedadNomina` interpreta las pendientes textuales en una fase separada
+- `SF_AnalizarNovedadTextoNomina` analiza las pendientes textuales en una fase separada apoyada en IA controlada
 - `SF_ConciliarItemsNomina` valida respaldo estructural, calculable o textual
 - luego subflujos posteriores deben encargarse de:
   - resolver equivalencias de conceptos por empresa

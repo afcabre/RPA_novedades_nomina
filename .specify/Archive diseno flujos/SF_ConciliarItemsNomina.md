@@ -25,6 +25,7 @@ Por eso antes de resolver catalogo y antes de registrar en la UI debe existir un
 ## Relacion con subflujos previos y posteriores
 
 - `SF_ExpandirConceptosNomina` genera items candidatos
+- `SF_AnalizarNovedadTextoNomina` segmenta y estructura pendientes textuales con apoyo de IA controlada
 - `SF_ConciliarItemsNomina` clasifica respaldo y registrabilidad
 - `SF_DescomponerConceptosNomina` puede operar antes o despues segun tipo de item
 - `SF_ResolverCatalogoConceptosNomina` debe operar sobre items ya conciliados
@@ -33,6 +34,8 @@ Por eso antes de resolver catalogo y antes de registrar en la UI debe existir un
 
 - `gListaConceptosNominaCandidatos` `List`
 - `gTotalConceptosNominaCandidatos` `Number`
+- `gListaNovedadesTextoAnalizadas` `List`
+- `gTotalNovedadesTextoAnalizadas` `Number`
 - `gArchivoLog` `Text`
 
 ## Salidas sugeridas
@@ -145,7 +148,7 @@ Resultado:
 
 La IA en esta fase solo debe actuar como fallback controlado:
 
-- para clasificar texto ambiguo
+- para clasificar texto ambiguo ya estructurado
 - para proponer asociacion entre una lista cerrada de candidatos
 - para sugerir si hay conflicto o falta respaldo
 
