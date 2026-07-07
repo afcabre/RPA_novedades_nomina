@@ -1,0 +1,182 @@
+# SF_ExpandirConceptosNomina
+# Expande filas crudas de nomina a conceptos candidatos registrables sin reabrir el Excel
+SET gEstadoExpansionConceptosNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalConceptosNominaCandidatos TO 0
+SET gHayConceptosNominaCandidatos TO False
+SET gTotalFilasNominaSinConceptos TO 0
+SET gTotalFilasNominaConConceptoUnico TO 0
+SET gTotalFilasNominaConConceptosMultiples TO 0
+SET gTotalCasosNominaPotencialesIA TO 0
+Variables.CreateNewList List=> gListaConceptosNominaCandidatos
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoExpansionConceptosNomina TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio expansion conceptos nomina | Archivo: %gNombreArchivoActual% | Filas crudas: %gListaRegistrosNominaCrudos.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaRegistrosNominaCrudos.Count = 0 THEN
+        SET gEstadoExpansionConceptosNomina TO $'''SIN_CONCEPTOS'''
+        SET gMensajeError TO $'''No hay registros crudos de nomina para expandir'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_CONCEPTOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    LOOP FOREACH CurrentItem IN gListaRegistrosNominaCrudos
+        SET gConceptosDetectadosRegistroActual TO 0
+        Scripting.RunPowershellScript.RunScript Script: $'''  $registro = \"%CurrentItem%\"
+  $partes = $registro -split \'\\|\', 14
+
+  if ($partes.Count -lt 14) {
+      [Console]::WriteLine(\"ERROR_REGISTRO_MALFORMADO\")
+      return
+  }
+
+  $archivoOrigen = $partes[0]
+  $hojaOrigen = $partes[1]
+  $quincenaHoja = $partes[2]
+  $filaExcel = $partes[3]
+  $ciudad = $partes[4]
+  $nombreEmpleado = $partes[5]
+  $cedulaFuente = $partes[6]
+  $area = $partes[7]
+  $sueldoBaseTexto = $partes[8]
+  $auxExtralegalBaseTexto = $partes[9]
+  $novedadTextoOriginal = $partes[11]
+  $cabeceraHojaTexto = $partes[12]
+  $filaCompletaTexto = $partes[13]
+
+  $cabeceras = $cabeceraHojaTexto -split \',\'
+  $valoresFila = $filaCompletaTexto -split \',\'
+  $conceptosActivos = @()
+
+  for ($i = 0; $i -lt $cabeceras.Count; $i++) {
+      $cabeceraOriginal = $cabeceras[$i].Trim()
+      $cabeceraNormalizada = $cabeceraOriginal.ToLower()
+      $valorTexto = \"\"
+
+      if ($i -lt $valoresFila.Count) {
+          $valorTexto = $valoresFila[$i].Trim()
+      }
+
+      if ($cabeceraNormalizada -eq \"\") { continue }
+      if ($cabeceraNormalizada -eq \"ciudad\") { continue }
+      if ($cabeceraNormalizada -eq \"nombre\") { continue }
+      if ($cabeceraNormalizada -eq \"cedula de ciudadania\") { continue }
+      if ($cabeceraNormalizada -eq \"area\") { continue }
+      if ($cabeceraNormalizada -eq \"área\") { continue }
+      if ($cabeceraNormalizada -eq \"novedades\") { continue }
+      if ($cabeceraNormalizada -like \"*sueldo*\") { continue }
+      if ($cabeceraNormalizada -like \"*aux. extralegal*\") { continue }
+
+      $valorTexto = $valorTexto.Replace([char]160, \" \").Trim()
+      $valorTextoNormalizado = $valorTexto.Replace(\".\", \"\").Replace(\",\", \"\").Replace(\" \", \"\")
+
+      if ($valorTexto -eq \"\") { continue }
+      if ($valorTexto -eq \"-\") { continue }
+      if ($valorTextoNormalizado -eq \"\") { continue }
+      if ($valorTextoNormalizado -eq \"0\") { continue }
+
+      $conceptosActivos += \"$cabeceraOriginal|||$i|||$valorTexto\"
+  }
+
+ $novedadTextoOriginal = $novedadTextoOriginal.Replace(\"`r\",\" \").Replace(\"`n\",\" \").Trim()
+ $nombreEmpleado = $nombreEmpleado.Replace(\"`r\",\" \").Replace(\"`n\",\" \").Trim()
+ $area = $area.Replace(\"`r\",\" \").Replace(\"`n\",\" \").Trim()
+ 
+  if ($conceptosActivos.Count -eq 0) {
+      [Console]::WriteLine(\"SIN_CONCEPTOS\")
+      return
+  }
+
+  $esCasoMultiple = $conceptosActivos.Count -gt 1
+
+foreach ($conceptoActivo in $conceptosActivos) {
+      $partesConcepto = $conceptoActivo -split \'\\|\\|\\|\', 3
+      $conceptoFuente = $partesConcepto[0]
+      $columnaOrigen = $partesConcepto[1]
+      $valorTexto = $partesConcepto[2]
+      
+      if ($esCasoMultiple) {
+          $novedadAsociadaConcepto = $novedadTextoOriginal
+          $novedadAsociadaConcepto = $novedadAsociadaConcepto.Replace(\"`r\",\" \").Replace(\"`n\",\" \").Trim()
+          $metodoAsociacionNovedad = \"MANUAL\"
+          $confianzaAsociacion = \"BAJA\"
+          $requiereRevision = \"True\"
+      }
+      else {
+          $novedadAsociadaConcepto = $novedadTextoOriginal
+          $novedadAsociadaConcepto = $novedadAsociadaConcepto.Replace(\"`r\",\" \").Replace(\"`n\",\" \").Trim()
+          $metodoAsociacionNovedad = \"REGLA\"
+          $confianzaAsociacion = \"ALTA\"
+          $requiereRevision = \"False\"
+      }
+      
+      [Console]::WriteLine(\"$archivoOrigen|$hojaOrigen|$quincenaHoja|$filaExcel|$ciudad|$nombreEmpleado|$cedulaFuente|$area|$sueldoBaseTexto|$auxExtralegalBaseTexto|$conceptoFuente|$columnaOrigen|$valorTexto|$novedadTextoOriginal|$novedadAsociadaConcepto|$metodoAsociacionNovedad|$confianzaAsociacion|$requiereRevision\")
+  }''' ScriptOutput=> gResultadoExpansionConceptosRegistroActual
+        DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''    _____________________________________________________
+   | DEBUG raw expansion | 
+   | %gResultadoExpansionConceptosRegistroActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Text.SplitText.Split Text: gResultadoExpansionConceptosRegistroActual StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gLineasConceptosRegistroActual
+        # <INI---Temporal
+        LOOP FOREACH CurrentConceptLine IN gLineasConceptosRegistroActual
+            IF IsEmpty(CurrentConceptLine) THEN
+            ELSE IF CurrentConceptLine = $'''SIN_CONCEPTOS''' THEN
+                SET gConceptosDetectadosRegistroActual TO 0
+            ELSE IF CurrentConceptLine = $'''ERROR_REGISTRO_MALFORMADO''' THEN
+                SET gEstadoExpansionConceptosNomina TO $'''ERROR'''
+                SET gMensajeError TO $'''Se recibio un registro crudo de nomina con formato invalido'''
+                File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                EXIT FUNCTION
+            ELSE
+                Variables.AddItemToList Item: CurrentConceptLine List: gListaConceptosNominaCandidatos
+                DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''   | Concepto candidato | %CurrentConceptLine%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                Variables.IncreaseVariable Value: gConceptosDetectadosRegistroActual IncrementValue: 1
+                Variables.IncreaseVariable Value: gTotalConceptosNominaCandidatos IncrementValue: 1
+            END
+        END
+        # Temporal -- FIN>
+        # Original
+        DISABLE LOOP FOREACH CurrentConceptLine IN gLineasConceptosRegistroActual
+            DISABLE IF IsEmpty(CurrentConceptLine) THEN
+            DISABLE ELSE IF CurrentConceptLine = $'''SIN_CONCEPTOS''' THEN
+                DISABLE SET gConceptosDetectadosRegistroActual TO 0
+            DISABLE ELSE IF CurrentConceptLine = $'''ERROR_REGISTRO_MALFORMADO''' THEN
+                DISABLE SET gEstadoExpansionConceptosNomina TO $'''ERROR'''
+                DISABLE SET gMensajeError TO $'''Se recibio un registro crudo de nomina con formato invalido'''
+                DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                DISABLE EXIT FUNCTION
+            DISABLE ELSE
+                DISABLE Variables.AddItemToList Item: CurrentConceptLine List: gListaConceptosNominaCandidatos
+                DISABLE Variables.IncreaseVariable Value: gConceptosDetectadosRegistroActual IncrementValue: 1
+                DISABLE Variables.IncreaseVariable Value: gTotalConceptosNominaCandidatos IncrementValue: 1
+            DISABLE END
+        DISABLE END
+        # Original
+        IF gConceptosDetectadosRegistroActual = 0 THEN
+            Variables.IncreaseVariable Value: gTotalFilasNominaSinConceptos IncrementValue: 1
+        ELSE IF gConceptosDetectadosRegistroActual = 1 THEN
+            Variables.IncreaseVariable Value: gTotalFilasNominaConConceptoUnico IncrementValue: 1
+        ELSE
+            Variables.IncreaseVariable Value: gTotalFilasNominaConConceptosMultiples IncrementValue: 1
+            Variables.IncreaseVariable Value: gTotalCasosNominaPotencialesIA IncrementValue: 1
+        END
+    END
+    IF gTotalConceptosNominaCandidatos = 0 THEN
+        SET gEstadoExpansionConceptosNomina TO $'''SIN_CONCEPTOS'''
+        SET gHayConceptosNominaCandidatos TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Expansion conceptos nomina finalizada sin conceptos candidatos''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoExpansionConceptosNomina TO $'''OK'''
+        SET gHayConceptosNominaCandidatos TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''    __________________________________________________________________
+   | Resumen expansion conceptos nomina | Filas sin conceptos: %gTotalFilasNominaSinConceptos% | Filas concepto unico: %gTotalFilasNominaConConceptoUnico% | Filas conceptos multiples: %gTotalFilasNominaConConceptosMultiples% | Casos potenciales IA: %gTotalCasosNominaPotencialesIA% | Conceptos candidatos: %gTotalConceptosNominaCandidatos%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

@@ -9,6 +9,9 @@ ELSE IF gTipoPreliminarArchivo = $'''NovedadesNomina''' THEN
     CALL SF_ValidarEstructuraNovedadesNomina
     IF gArchivoNominaValido = True THEN
         CALL SF_LeerNovedadesNominaHojasValidas
+        IF gHayRegistrosNominaLeidos = True THEN
+            CALL SF_ExpandirConceptosNomina
+        END
     END
     GOTO CicloArchivosPendientes
 ELSE IF gTipoPreliminarArchivo = $'''HorasExtra''' THEN

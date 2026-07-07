@@ -10,9 +10,9 @@ SET gIndiceHojaNominaActual TO 0
 Variables.CreateNewList List=> gListaRegistrosNominaCrudos
 BLOCK 
 ON BLOCK ERROR
-SET gEstadoLecturaNovedadesNomina TO $'''ERROR'''
-SET gEsErrorControlado TO True
-THROW ERROR
+    SET gEstadoLecturaNovedadesNomina TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
 END
     File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
 Inicio lectura novedades nomina | Archivo: %gNombreArchivoActual% | Hojas validas: %gListaHojasNominaValidas.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
