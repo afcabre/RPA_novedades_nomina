@@ -4,7 +4,7 @@ Documento base del subflujo `SF_ResolverCatalogoConceptosNomina` para el RPA de 
 
 ## Objetivo
 
-Tomar la lista `gListaConceptosNominaCandidatos` producida por `SF_ExpandirConceptosNomina` y resolver, para cada concepto fuente detectado en Excel, su equivalencia operativa dentro del sistema de nomina segun la empresa objetivo.
+Tomar la lista `gListaRegistrosFuenteNovedadesNomina` producida por `SF_ExpandirConceptosNomina` y resolver, para cada registro fuente detectado en Excel, su equivalencia operativa dentro del sistema de nomina segun la empresa objetivo.
 
 Este subflujo no debe registrar aun en el sistema. Su responsabilidad es dejar cada concepto candidato enriquecido con resultado de catalogo:
 
@@ -32,7 +32,7 @@ Por eso se necesita una capa intermedia de catalogo y equivalencias.
 
 ## Relacion con subflujos previos y posteriores
 
-- `SF_ExpandirConceptosNomina` genera conceptos candidatos con contexto
+- `SF_ExpandirConceptosNomina` genera registros fuente materializados con contexto
 - `SF_ResolverCatalogoConceptosNomina` cruza esos conceptos contra un catalogo por empresa
 - luego subflujos posteriores deben encargarse de:
   - resolver empleado en el sistema
@@ -42,8 +42,8 @@ Por eso se necesita una capa intermedia de catalogo y equivalencias.
 
 ## Entrada esperada
 
-- `gListaConceptosNominaCandidatos` `List`
-- `gTotalConceptosNominaCandidatos` `Number`
+- `gListaRegistrosFuenteNovedadesNomina` `List`
+- `gTotalRegistrosFuenteNovedadesNomina` `Number`
 - `gNombreEmpresaObjetivo` `Text`
 - `gArchivoLog` `Text`
 
@@ -214,7 +214,7 @@ Resultado esperado:
 
 - inicio del subflujo
 - empresa objetivo
-- total de conceptos candidatos recibidos
+- total de registros fuente recibidos
 - total resueltos
 - total ambiguos
 - total no encontrados
@@ -225,7 +225,7 @@ No se recomienda loggear todas las lineas resueltas salvo modo debug.
 ## Flujo propuesto en PAD
 
 1. inicializar estado, contadores y listas de salida
-2. validar que `gListaConceptosNominaCandidatos` tenga elementos
+2. validar que `gListaRegistrosFuenteNovedadesNomina` tenga elementos
 3. cargar catalogo de conceptos de la empresa objetivo
 4. recorrer cada candidato
 5. normalizar `ConceptoFuente`

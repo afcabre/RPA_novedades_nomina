@@ -6,7 +6,7 @@ Documento base del subflujo `SF_ExpandirConceptosNomina` para el RPA de registro
 
 Tomar cada fila cruda leida desde una hoja valida de nomina y:
 
-- convertir en conceptos candidatos unicamente los conceptos materializados en columnas con valor
+- convertir en registros fuente unicamente los conceptos materializados en columnas con valor
 - preservar en una salida separada las novedades textuales relevantes que no deban perderse
 
 ## Motivacion
@@ -32,7 +32,7 @@ Adicionalmente:
 
 - `SF_ValidarEstructuraNovedadesNomina` determina hojas validas y metadatos de cabecera
 - `SF_LeerNovedadesNominaHojasValidas` produce filas crudas de empleados
-- `SF_ExpandirConceptosNomina` convierte filas crudas en conceptos explicitos candidatos y preserva pendientes textuales
+- `SF_ExpandirConceptosNomina` convierte filas crudas en registros fuente materializados y preserva pendientes textuales
 - `SF_AnalizarNovedadTextoNomina` analiza las pendientes textuales en una fase separada apoyada en IA controlada
 - `SF_ConciliarItemsNomina` valida respaldo estructural, calculable o textual
 - luego subflujos posteriores deben encargarse de:
@@ -68,9 +68,9 @@ En una primera version PAD, esto puede implementarse con listas de texto delimit
 
 - `gEstadoExpansionConceptosNomina` `Text`
 - `gMensajeError` `Text`
-- `gListaConceptosNominaCandidatos` `List`
-- `gTotalConceptosNominaCandidatos` `Number`
-- `gHayConceptosNominaCandidatos` `Boolean`
+- `gListaRegistrosFuenteNovedadesNomina` `List`
+- `gTotalRegistrosFuenteNovedadesNomina` `Number`
+- `gHayRegistrosFuenteNovedadesNomina` `Boolean`
 - `gListaNovedadesTextoPendientes` `List`
 - `gTotalNovedadesTextoPendientes` `Number`
 - `gHayNovedadesTextoPendientes` `Boolean`
@@ -79,14 +79,14 @@ Nota:
 
 El contrato principal del subflujo sigue siendo material y estable:
 
-- la lista de conceptos candidatos solo contiene conceptos explicitos con valor en columna
+- la lista de registros fuente solo contiene conceptos explicitos con valor en columna
 - la lista de pendientes textuales solo preserva evidencia para fases posteriores
 
 ## Contrato exacto de salida en PAD
 
 Mientras la implementacion siga basada en listas de texto delimitadas, se recomienda fijar desde ya el orden exacto de campos.
 
-### Contrato de `gListaConceptosNominaCandidatos`
+### Contrato de `gListaRegistrosFuenteNovedadesNomina`
 
 Formato por item:
 
@@ -110,9 +110,9 @@ ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuen
 
 ## Unidad de salida recomendada
 
-### Salida 1. Conceptos explicitos candidatos
+### Salida 1. Registros fuente materializados
 
-Cada concepto candidato deberia representar una posible novedad estructuralmente visible. Campos sugeridos:
+Cada registro fuente deberia representar una posible novedad estructuralmente visible. Campos sugeridos:
 
 - `ArchivoOrigen`
 - `HojaOrigen`
@@ -205,7 +205,7 @@ Ejemplos:
 
 ## Criterio minimo para `TieneConceptosExplicitos`
 
-- `True` si la fila genero al menos un item en `gListaConceptosNominaCandidatos`
+- `True` si la fila genero al menos un item en `gListaRegistrosFuenteNovedadesNomina`
 - `False` si no genero ninguno
 
 ## Regla base de expansion
@@ -300,7 +300,7 @@ Si la observacion contiene un monto monetario que no esta respaldado por:
 - una regla formal de calculo
 - una excepcion parametrizada
 
-entonces la fila debe preservarse como pendiente textual o quedar preparada para conciliacion posterior, pero no como concepto candidato directo a autorregistro.
+entonces la fila debe preservarse como pendiente textual o quedar preparada para conciliacion posterior, pero no como registro fuente directo a autorregistro.
 
 ## Regla minima para pendientes textuales
 
@@ -323,7 +323,7 @@ Una fase posterior definira si ese texto corresponde a evento derivable, conflic
 
 - inicio del subflujo
 - cantidad de filas crudas recibidas
-- cantidad de conceptos candidatos generados
+- cantidad de registros fuente generados
 - cantidad de filas con un solo concepto
 - cantidad de filas con multiples conceptos
 - cantidad de pendientes textuales preservadas
@@ -345,7 +345,7 @@ Seguir el mismo patron de los demas subflujos:
 La primera version no necesita usar IA todavia. Se recomienda implementar por fases:
 
 1. detectar conceptos con valor por fila
-2. generar conceptos candidatos explicitos
+2. generar registros fuente explicitos
 3. copiar `NovedadTextoOriginal` a cada candidato
 4. preservar pendientes textuales en una lista separada
 5. separar lo conciliado de lo no respaldado en subflujos posteriores

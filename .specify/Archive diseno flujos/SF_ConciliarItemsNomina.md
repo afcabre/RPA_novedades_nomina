@@ -4,7 +4,7 @@ Documento base del subflujo `SF_ConciliarItemsNomina` para el RPA de registro de
 
 ## Objetivo
 
-Recibir los items candidatos generados desde la lectura y expansion de nomina, y determinar si cada item:
+Recibir los registros fuente materializados y los hallazgos textuales de nomina, y determinar si cada registro:
 
 - tiene respaldo estructural suficiente para autorregistro
 - requiere calculo previo
@@ -26,7 +26,7 @@ Por eso antes de resolver catalogo y antes de registrar en la UI debe existir un
 
 Este subflujo si debe encargarse de los casos mixtos. Es decir:
 
-- cuando una fila trae uno o varios valores en columnas que ya generan conceptos candidatos
+- cuando una fila trae uno o varios valores en columnas que ya generan registros fuente
 - y esa misma fila trae texto adicional con novedades que no quedaron materializadas
 
 La conciliacion debe:
@@ -37,16 +37,16 @@ La conciliacion debe:
 
 ## Relacion con subflujos previos y posteriores
 
-- `SF_ExpandirConceptosNomina` genera items candidatos
+- `SF_ExpandirConceptosNomina` genera registros fuente materializados
 - `SF_AnalizarNovedadTextoNomina` segmenta y estructura pendientes textuales con apoyo de IA controlada
 - `SF_ConciliarItemsNomina` clasifica respaldo y registrabilidad, incluyendo filas mixtas con conceptos en columnas y texto adicional no materializado
 - `SF_DescomponerConceptosNomina` puede operar antes o despues segun tipo de item
-- `SF_ResolverCatalogoConceptosNomina` debe operar sobre items ya conciliados
+- `SF_ResolverCatalogoConceptosNomina` debe operar sobre registros ya conciliados
 
 ## Entrada esperada
 
-- `gListaConceptosNominaCandidatos` `List`
-- `gTotalConceptosNominaCandidatos` `Number`
+- `gListaRegistrosFuenteNovedadesNomina` `List`
+- `gTotalRegistrosFuenteNovedadesNomina` `Number`
 - `gListaNovedadesTextoAnalizadas` `List`
 - `gTotalNovedadesTextoAnalizadas` `Number`
 - `gArchivoLog` `Text`
