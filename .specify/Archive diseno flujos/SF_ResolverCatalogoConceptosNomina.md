@@ -11,7 +11,6 @@ Este subflujo no debe registrar aun en el sistema. Su responsabilidad es dejar c
 - resuelto
 - ambiguo
 - no encontrado
-- no aplica a catalogo
 
 ## Motivacion
 
@@ -46,7 +45,9 @@ Por eso se necesita una capa intermedia de catalogo y equivalencias.
 
 Este subflujo no debe procesar toda la conciliacion indiscriminadamente.
 
-Solo entran filas que cumplan:
+Antes de entrar a este subflujo debe existir una depuracion o subflujo previo que separe la conciliacion.
+
+Solo deben llegar a `SF_ResolverCatalogoConceptosNomina` filas que cumplan:
 
 - `OrigenAnalisis = REGISTRO_FUENTE`
 - `EstadoConciliacion = CONCILIADO`
@@ -59,7 +60,7 @@ No entran aqui:
 - `TEXTO_SIN_RESPALDO`
 - `CONFLICTO`
 
-Esos casos deben quedar en una ruta separada, por ejemplo:
+Esos casos no deben entrar aqui. Deben quedar en una ruta separada, por ejemplo:
 
 - `SF_PrepararPendientesTextoNomina`
 - o un resolvedor especializado posterior, cuando exista base funcional para ello
@@ -73,7 +74,7 @@ Esos casos deben quedar en una ruta separada, por ejemplo:
 
 ## Filtro de entrada esperado
 
-La primera responsabilidad del subflujo es depurar `gListaConciliacionNovedadesNomina` y construir una lista operativa interna solo con filas aptas para resolucion de catalogo.
+La lista de entrada ya debe venir depurada para catalogo. Si por robustez el subflujo encuentra una fila no apta, debe registrarla en log y omitirla, pero no convertir esa omision en un estado funcional de salida.
 
 Campos minimos que debe leer de cada fila:
 
@@ -230,7 +231,6 @@ Reglas:
 - `gTotalCatalogoResueltos` `Number`
 - `gTotalCatalogoAmbiguos` `Number`
 - `gTotalCatalogoNoEncontrados` `Number`
-- `gTotalCatalogoNoAplicaCatalogo` `Number`
 - `gHayResolucionCatalogoNovedadesNomina` `Boolean`
 
 ## Unidad de salida recomendada
@@ -253,7 +253,7 @@ Cada registro de salida debe conservar toda la informacion de entrada y agregar 
 
 Valores sugeridos:
 
-- `EstadoResolucionCatalogo = RESUELTO | AMBIGUO | NO_ENCONTRADO | NO_APLICA_CATALOGO`
+- `EstadoResolucionCatalogo = RESUELTO | AMBIGUO | NO_ENCONTRADO`
 - `MetodoResolucionCatalogo = EXACTO | IA_PREMAPEADOS | IA_CATALOGO_COMPLETO | MANUAL`
 - `ConfianzaResolucionCatalogo = ALTA | MEDIA | BAJA`
 
@@ -286,16 +286,6 @@ Resultado esperado:
 - `BAJA`
 - `RequiereRevisionCatalogo = True`
 
-### Caso 4. Fila de conciliacion no apta para catalogo
-
-Resultado esperado:
-
-- `NO_APLICA_CATALOGO`
-- `MetodoResolucionCatalogo = MANUAL`
-- `ConfianzaResolucionCatalogo = BAJA`
-- `RequiereRevisionCatalogo = False`
-- `MotivoDescartado = No aplica a resolucion de catalogo en esta fase`
-
 ## Que no debe hacer este subflujo
 
 - no releer el Excel
@@ -309,9 +299,7 @@ Resultado esperado:
 
 - inicio del subflujo
 - empresa objetivo
-- total de filas conciliadas recibidas
-- total aptas para catalogo
-- total no aplica catalogo
+- total de filas recibidas para catalogo
 - total resueltos
 - total ambiguos
 - total no encontrados
@@ -322,10 +310,10 @@ No se recomienda loggear todas las lineas resueltas salvo modo debug.
 ## Flujo propuesto en PAD
 
 1. inicializar estado, contadores y listas de salida
-2. validar que `gListaConciliacionNovedadesNomina` tenga elementos
-3. recorrer conciliacion y depurar solo filas aptas para catalogo
-4. cargar catalogo de conceptos de la empresa objetivo
-5. recorrer cada fila apta
+2. validar que la lista de entrada para catalogo tenga elementos
+3. cargar catalogo de conceptos de la empresa objetivo
+4. recorrer cada fila recibida
+5. validar robustez minima de la fila
 6. normalizar `ConceptoFuenteExcel`
 7. buscar coincidencias activas en asociaciones configuradas
 8. si aplica, invocar sugerencia IA segun switches
@@ -349,7 +337,7 @@ Seguir el patron ya usado:
 Implementarlo en dos pasos:
 
 1. version 1:
-   - consumir solo `REGISTRO_FUENTE` conciliado
+   - consumir una lista ya filtrada de `REGISTRO_FUENTE` conciliado
    - resolucion exacta deterministica por empresa
    - sin IA
 2. version 2:
