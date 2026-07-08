@@ -209,7 +209,7 @@ La resolucion debe seguir este orden:
 
 1. coincidencia exacta deterministica en asociaciones configuradas
 2. coincidencia deterministica por tipo de evento, si existe mapeo cerrado por empresa
-3. sugerencia IA sobre lista cerrada de candidatos premapeados, solo si el switch correspondiente esta activo
+3. sugerencia IA sobre lista cerrada de candidatos configurados, solo si el switch correspondiente esta activo
 4. sugerencia IA sobre catalogo completo de la empresa, solo si el switch correspondiente esta activo y no existe resolucion deterministica
 
 La IA no debe inventar conceptos del sistema ni autorizar registro por si sola.
@@ -223,8 +223,8 @@ La IA no debe inventar conceptos del sistema ni autorizar registro por si sola.
 
 Reglas:
 
-- si `pHabilitarMapeoConceptosIA = False`, todo lo no resuelto por regla queda para revision
-- `AMBIGUO` con candidatos premapeados puede pasar por IA solo si `pResolverAmbiguosConIAPremapeados = True`
+- si `pHabilitarMapeoConceptosIA = False`, todo lo no resuelto por regla queda pendiente de validacion
+- `AMBIGUO` con candidatos configurados puede pasar por IA solo si `pResolverAmbiguosConIAPremapeados = True`
 - `AMBIGUO` sin lista cerrada puede pasar por IA con catalogo completo solo si `pResolverAmbiguosConIACatalogoCompleto = True`
 - `NO_ENCONTRADO` puede pasar por IA con catalogo completo solo si `pResolverNoEncontradosConIACatalogoCompleto = True`
 
@@ -252,7 +252,7 @@ Cada registro de salida debe conservar toda la informacion de entrada y agregar 
 - `TipoRegistroSistema`
 - `MetodoResolucionCatalogo`
 - `ConfianzaResolucionCatalogo`
-- `RequiereRevisionCatalogo`
+- `RequiereValidacionUsuario`
 - `CandidatosCatalogo`
 - `SugerenciaIACodigoSistema`
 - `SugerenciaIAConceptoSistema`
@@ -261,7 +261,7 @@ Cada registro de salida debe conservar toda la informacion de entrada y agregar 
 Valores sugeridos:
 
 - `EstadoResolucionCatalogo = RESUELTO | AMBIGUO | NO_ENCONTRADO`
-- `MetodoResolucionCatalogo = REGLA_EXACTA | REGLA_PREMAPEADA | REGLA_TIPO_EVENTO | IA_PREMAPEADOS | IA_CATALOGO_COMPLETO | MANUAL`
+- `MetodoResolucionCatalogo = REGLA_EXACTA | REGLA_CONFIGURADA | REGLA_TIPO_EVENTO | IA_CANDIDATOS | IA_CATALOGO | PENDIENTE_VALIDACION`
 - `ConfianzaResolucionCatalogo = ALTA | MEDIA | BAJA`
 
 ## Casos que debe manejar
@@ -273,25 +273,27 @@ Resultado esperado:
 - `RESUELTO`
 - `REGLA_EXACTA`
 - `ALTA`
-- `RequiereRevisionCatalogo = False`
+- `RequiereValidacionUsuario = False`
 
 ### Caso 2. Un concepto candidato, varias coincidencias posibles
 
 Resultado esperado:
 
 - `AMBIGUO`
-- `MANUAL` o sugerencia IA segun switch activo
+- `IA_CANDIDATOS` si existe lista cerrada y el switch esta activo
+- `IA_CATALOGO` si no existe lista cerrada y el switch correspondiente esta activo
+- `PENDIENTE_VALIDACION` si no hay IA habilitada o no produce salida suficiente
 - `BAJA`
-- `RequiereRevisionCatalogo = True`
+- `RequiereValidacionUsuario = True`
 
 ### Caso 3. Concepto candidato sin equivalencia cargada
 
 Resultado esperado:
 
 - `NO_ENCONTRADO`
-- `MANUAL` o sugerencia IA con catalogo completo segun switch activo
+- `PENDIENTE_VALIDACION` o sugerencia IA con catalogo completo segun switch activo
 - `BAJA`
-- `RequiereRevisionCatalogo = True`
+- `RequiereValidacionUsuario = True`
 
 ### Caso 4. Derivado calculable sin concepto fuente visible
 
@@ -306,16 +308,16 @@ Resultado esperado:
 - `BaseResolucionCatalogo = TIPO_EVENTO`
 - `MetodoResolucionCatalogo = REGLA_TIPO_EVENTO` o IA segun switch
 - `EstadoResolucionCatalogo = RESUELTO | AMBIGUO | NO_ENCONTRADO`
-- `RequiereRevisionCatalogo` segun confianza
+- `RequiereValidacionUsuario` segun confianza
 
 ### Caso 5. Texto sin respaldo estructural directo
 
 Resultado esperado:
 
 - `BaseResolucionCatalogo = TEXTO_NOVEDAD`
-- `MetodoResolucionCatalogo = IA_CATALOGO_COMPLETO` o `MANUAL`
+- `MetodoResolucionCatalogo = IA_CATALOGO` o `PENDIENTE_VALIDACION`
 - `EstadoResolucionCatalogo = AMBIGUO | NO_ENCONTRADO | RESUELTO`
-- `RequiereRevisionCatalogo = True` salvo una regla cerrada extremadamente clara
+- `RequiereValidacionUsuario = True` salvo una regla cerrada extremadamente clara
 
 ### Caso 6. Conflicto entre estructura y texto
 
@@ -323,8 +325,46 @@ Resultado esperado:
 
 - `BaseResolucionCatalogo = MIXTA`
 - `EstadoResolucionCatalogo = RESUELTO | AMBIGUO | NO_ENCONTRADO`
-- `RequiereRevisionCatalogo = True`
+- `RequiereValidacionUsuario = True`
 - `MotivoRevision` debe explicar la tension entre texto y estructura
+
+## Uso esperado de IA en resolucion de catalogo
+
+La IA no entra de una sola forma. Deben existir dos rutas diferenciadas:
+
+### Ruta 1. IA sobre candidatos premapeados
+
+Aplica cuando:
+
+- ya existe una lista cerrada de conceptos posibles para esa empresa
+- la resolucion por regla no fue univoca
+
+Metodo esperado:
+
+- `IA_CANDIDATOS`
+
+Salida esperada:
+
+- sugerencia entre candidatos reales ya conocidos
+- no debe inventar nuevos conceptos
+- normalmente debe conservar `RequiereValidacionUsuario = True`
+
+### Ruta 2. IA sobre catalogo completo
+
+Aplica cuando:
+
+- no existe premapeo suficiente
+- o el caso no quedo resuelto con candidatos cerrados
+
+Metodo esperado:
+
+- `IA_CATALOGO`
+
+Salida esperada:
+
+- sugerencia sobre conceptos reales del catalogo de la empresa
+- debe quedar marcada como sugerencia no autoritativa
+- normalmente debe conservar `RequiereValidacionUsuario = True`
 
 ## Que no debe hacer este subflujo
 
