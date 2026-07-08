@@ -1,0 +1,168 @@
+# SF_EscribirAnalisisNovedadesTextoExcel
+# Escribe el resultado de gListaNovedadesTextoAnalizadas en la hoja novedadesTexto del archivo de analisis de la corrida
+SET gEstadoEscrituraAnalisisNovedadesExcel TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalFilasAnalisisNovedadesEscritas TO 0
+SET gTotalFilasAnalisisNovedadesConErrorFormato TO 0
+SET gHayFilasAnalisisNovedadesEscritas TO False
+SET gExcelAnalisisNovedadesAbierto TO False
+SET gNombreHojaAnalisisNovedades TO $'''novedadesTexto'''
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoEscrituraAnalisisNovedadesExcel TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio escritura analisis novedades Excel | Archivo: %gRutaArchivoAnalisisNovedades% | Registros: %gListaNovedadesTextoAnalizadas.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaNovedadesTextoAnalizadas.Count = 0 THEN
+        SET gEstadoEscrituraAnalisisNovedadesExcel TO $'''SIN_DATOS'''
+        SET gMensajeError TO $'''No hay novedades analizadas para escribir en Excel'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_DATOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF (File.IfFile.DoesNotExist File: gRutaArchivoAnalisisNovedades) THEN
+        SET gEstadoEscrituraAnalisisNovedadesExcel TO $'''ERROR'''
+        SET gMensajeError TO $'''No existe el archivo Excel de analisis de novedades para escritura'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Ruta: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: gRutaArchivoAnalisisNovedades Visible: False ReadOnly: False Instance=> ExcelInstance
+    SET gExcelAnalisisNovedadesAbierto TO True
+    SET gExisteHojaAnalisisNovedades TO False
+    SET gExisteSheet1AnalisisNovedades TO False
+    Excel.GetAllWorksheets Instance: ExcelInstance Worksheets=> gHojasArchivoAnalisisNovedades
+    LOOP FOREACH CurrentSheetAnalisisNovedades IN gHojasArchivoAnalisisNovedades
+        IF CurrentSheetAnalisisNovedades = gNombreHojaAnalisisNovedades THEN
+            SET gExisteHojaAnalisisNovedades TO True
+        ELSE IF CurrentSheetAnalisisNovedades = $'''Sheet1''' THEN
+            SET gExisteSheet1AnalisisNovedades TO True
+        END
+    END
+    IF gExisteHojaAnalisisNovedades = False THEN
+        IF gExisteSheet1AnalisisNovedades = True THEN
+            Excel.CopyExcelWorksheet.CopyWorksheetWithName SourceInstance: ExcelInstance SourceWorksheetName: $'''Sheet1''' TargetInstance: ExcelInstance TargetWorksheetName: gNombreHojaAnalisisNovedades PasteWorksheetPosition: Excel.WorksheetPosition.First
+            File.WriteText File: gArchivoLog TextToWrite: $'''OK | Hoja %gNombreHojaAnalisisNovedades% creada a partir de Sheet1''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            SET gEstadoEscrituraAnalisisNovedadesExcel TO $'''ERROR'''
+            SET gMensajeError TO $'''No existe la hoja novedadesTexto ni una hoja Sheet1 para reutilizar en el archivo de analisis'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+            SET gExcelAnalisisNovedadesAbierto TO False
+            EXIT FUNCTION
+        END
+    END
+    Excel.SetActiveWorksheet.ActivateWorksheetByName Instance: ExcelInstance Name: gNombreHojaAnalisisNovedades
+    Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: 1 GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gCabeceraAnalisisNovedadesA1
+    IF IsEmpty(gCabeceraAnalisisNovedadesA1) THEN
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''IdEjecucion''' Column: $'''A''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ArchivoOrigen''' Column: $'''B''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''HojaOrigen''' Column: $'''C''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''FilaExcel''' Column: $'''D''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''Ciudad''' Column: $'''E''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''NombreEmpleado''' Column: $'''F''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''CedulaFuente''' Column: $'''G''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''Area''' Column: $'''H''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''SueldoBaseTexto''' Column: $'''I''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''AuxExtralegalBaseTexto''' Column: $'''J''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''NovedadTextoOriginal''' Column: $'''K''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''IndiceFragmento''' Column: $'''L''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''TextoFragmento''' Column: $'''M''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''TipoSugeridoIA''' Column: $'''N''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''MontoMencionado''' Column: $'''O''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''DiasMencionados''' Column: $'''P''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''RequiereCalculo''' Column: $'''Q''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''TieneRespaldoEstructuralSugerido''' Column: $'''R''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ConfianzaIA''' Column: $'''S''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''RequiereRevision''' Column: $'''T''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ObservacionTecnica''' Column: $'''U''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''EstadoRevisionUsuario''' Column: $'''V''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''DecisionUsuario''' Column: $'''W''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ObservacionRevisionUsuario''' Column: $'''X''' Row: 1
+    END
+    SET gFilaEscrituraAnalisisNovedadesActual TO 2
+    SET gBuscarFilaLibreAnalisisNovedades TO True
+    LOOP WHILE gBuscarFilaLibreAnalisisNovedades = True
+        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: gFilaEscrituraAnalisisNovedadesActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gValorControlFilaAnalisisNovedades
+        IF IsEmpty(gValorControlFilaAnalisisNovedades) THEN
+            SET gBuscarFilaLibreAnalisisNovedades TO False
+        ELSE
+            Variables.IncreaseVariable Value: gFilaEscrituraAnalisisNovedadesActual IncrementValue: 1
+        END
+    END
+    LOOP FOREACH CurrentItem IN gListaNovedadesTextoAnalizadas
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesAnalisisNovedadesExcelActual
+        IF gPartesAnalisisNovedadesExcelActual.Count < 23 THEN
+            Variables.IncreaseVariable Value: gTotalFilasAnalisisNovedadesConErrorFormato IncrementValue: 1
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | Registro analisis novedades con formato invalido | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            SET gArchivoOrigenAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[0]
+            SET gHojaOrigenAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[1]
+            SET gFilaExcelAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[3]
+            SET gCiudadAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[4]
+            SET gNombreEmpleadoAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[5]
+            SET gCedulaFuenteAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[6]
+            SET gAreaAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[7]
+            SET gSueldoBaseAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[8]
+            SET gAuxExtralegalAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[9]
+            SET gNovedadTextoOriginalAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[10]
+            SET gIndiceFragmentoAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[13]
+            SET gTextoFragmentoAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[14]
+            SET gTipoSugeridoIAAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[15]
+            SET gMontoMencionadoAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[16]
+            SET gDiasMencionadosAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[17]
+            SET gRequiereCalculoAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[18]
+            SET gTieneRespaldoEstructuralAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[19]
+            SET gConfianzaIAAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[20]
+            SET gRequiereRevisionAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[21]
+            SET gObservacionTecnicaAnalisisExcelActual TO gPartesAnalisisNovedadesExcelActual[22]
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gIdEjecucion Column: $'''A''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gArchivoOrigenAnalisisExcelActual Column: $'''B''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gHojaOrigenAnalisisExcelActual Column: $'''C''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gFilaExcelAnalisisExcelActual Column: $'''D''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gCiudadAnalisisExcelActual Column: $'''E''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gNombreEmpleadoAnalisisExcelActual Column: $'''F''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gCedulaFuenteAnalisisExcelActual Column: $'''G''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gAreaAnalisisExcelActual Column: $'''H''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gSueldoBaseAnalisisExcelActual Column: $'''I''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gAuxExtralegalAnalisisExcelActual Column: $'''J''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gNovedadTextoOriginalAnalisisExcelActual Column: $'''K''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gIndiceFragmentoAnalisisExcelActual Column: $'''L''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gTextoFragmentoAnalisisExcelActual Column: $'''M''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gTipoSugeridoIAAnalisisExcelActual Column: $'''N''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gMontoMencionadoAnalisisExcelActual Column: $'''O''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gDiasMencionadosAnalisisExcelActual Column: $'''P''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gRequiereCalculoAnalisisExcelActual Column: $'''Q''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gTieneRespaldoEstructuralAnalisisExcelActual Column: $'''R''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gConfianzaIAAnalisisExcelActual Column: $'''S''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gRequiereRevisionAnalisisExcelActual Column: $'''T''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gObservacionTecnicaAnalisisExcelActual Column: $'''U''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''Pendiente''' Column: $'''V''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''''' Column: $'''W''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''''' Column: $'''X''' Row: gFilaEscrituraAnalisisNovedadesActual
+            Variables.IncreaseVariable Value: gTotalFilasAnalisisNovedadesEscritas IncrementValue: 1
+            Variables.IncreaseVariable Value: gFilaEscrituraAnalisisNovedadesActual IncrementValue: 1
+        END
+    END
+    Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+    SET gExcelAnalisisNovedadesAbierto TO False
+    IF gTotalFilasAnalisisNovedadesEscritas = 0 THEN
+        SET gEstadoEscrituraAnalisisNovedadesExcel TO $'''SIN_DATOS'''
+        SET gHayFilasAnalisisNovedadesEscritas TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Escritura analisis novedades Excel finalizada sin filas escritas''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoEscrituraAnalisisNovedadesExcel TO $'''OK'''
+        SET gHayFilasAnalisisNovedadesEscritas TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen escritura analisis novedades Excel | Filas escritas: %gTotalFilasAnalisisNovedadesEscritas% | Filas con error formato: %gTotalFilasAnalisisNovedadesConErrorFormato% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    IF gExcelAnalisisNovedadesAbierto = True THEN
+        Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+        SET gExcelAnalisisNovedadesAbierto TO False
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

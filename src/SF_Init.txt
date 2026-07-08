@@ -82,7 +82,8 @@ END
     ELSE
         SET gPeriodoNominaToken TO $'''MC'''
     END
-    SET gNombreArchivoAnalisisNovedades TO $'''Analisis_Novedades_%pMesNominaObjetivo%_%pAnoNominaObjetivo%_%gPeriodoNominaToken%_%gIdEjecucion%.xlsx'''
+    SET gNombreArchivoAnalisisNovedadesBase TO $'''Analisis_Novedades_%pMesNominaObjetivo%_%pAnoNominaObjetivo%_%gPeriodoNominaToken%_%gIdEjecucion%'''
+    SET gNombreArchivoAnalisisNovedades TO $'''%gNombreArchivoAnalisisNovedadesBase%.xlsx'''
     SET gRutaPlantillaAnalisisNovedades TO $'''%pDirectorioPlantillas%\\Plantilla_Analisis_Novedades.xlsx'''
     SET gRutaArchivoAnalisisNovedades TO $'''%pDirectorioSalidas%\\%gNombreArchivoAnalisisNovedades%'''
     IF (File.IfFile.DoesNotExist File: gRutaPlantillaAnalisisNovedades) THEN
@@ -92,6 +93,14 @@ END
         EXIT FUNCTION
     END
     File.WriteText File: gArchivoLog TextToWrite: $'''OK | Plantilla analisis novedades encontrada | %gRutaPlantillaAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF (File.IfFile.DoesNotExist File: gRutaArchivoAnalisisNovedades) THEN
+        File.Copy Files: gRutaPlantillaAnalisisNovedades Destination: pDirectorioSalidas IfFileExists: File.IfExists.Overwrite CopiedFiles=> gArchivosPlantillaCopiados
+        SET gRutaArchivoPlantillaCopiada TO $'''%pDirectorioSalidas%\\Plantilla_Analisis_Novedades.xlsx'''
+        File.RenameFiles.Rename Files: gRutaArchivoPlantillaCopiada NewName: gNombreArchivoAnalisisNovedadesBase KeepExtension: True IfFileExists: File.IfExists.Overwrite RenamedFiles=> gArchivosPlantillaRenombrados
+        File.WriteText File: gArchivoLog TextToWrite: $'''OK | Archivo analisis novedades creado desde plantilla | %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        File.WriteText File: gArchivoLog TextToWrite: $'''OK | Archivo analisis novedades ya existia | %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
     File.WriteText File: gArchivoLog TextToWrite: $'''OK | Archivo analisis novedades configurado | %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     Folder.GetFiles Folder: pDirectorioEntrada FileFilter: $'''*.xlsx''' IncludeSubfolders: False FailOnAccessDenied: True SortBy1: Folder.SortBy.NoSort SortDescending1: False SortBy2: Folder.SortBy.NoSort SortDescending2: False SortBy3: Folder.SortBy.NoSort SortDescending3: False Files=> gListaArchivosAProcesar
     SET gTotalArchivosAProcesar TO gListaArchivosAProcesar.Count
