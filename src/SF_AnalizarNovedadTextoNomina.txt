@@ -1,0 +1,260 @@
+# SF_AnalizarNovedadTextoNomina
+# Analiza pendientes textuales de nomina contra Mistral y deja una salida estructurada para conciliacion posterior
+SET gEstadoAnalisisNovedadTextoNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalNovedadesTextoAnalizadas TO 0
+SET gHayNovedadesTextoAnalizadas TO False
+SET gTotalFilasTextoAnalizadas TO 0
+SET gTotalFilasTextoSinSalida TO 0
+SET gTotalFilasTextoConErrorFormato TO 0
+Variables.CreateNewList List=> gListaNovedadesTextoAnalizadas
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoAnalisisNovedadTextoNomina TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio analisis novedad texto nomina | Archivo: %gNombreArchivoActual% | Pendientes texto: %gListaNovedadesTextoPendientes.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaNovedadesTextoPendientes.Count = 0 THEN
+        SET gEstadoAnalisisNovedadTextoNomina TO $'''SIN_PENDIENTES'''
+        SET gMensajeError TO $'''No hay novedades textuales pendientes para analizar'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_PENDIENTES | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF pProveedorIA <> $'''mistral''' THEN
+        SET gEstadoAnalisisNovedadTextoNomina TO $'''ERROR'''
+        SET gMensajeError TO $'''Proveedor IA no soportado en esta version: %pProveedorIA%'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    Scripting.RunPowershellScript.RunScript Script: $'''$TargetName = \"%pCredentialAliasIA%\"
+$CredentialType = 1 # CRED_TYPE_GENERIC
+
+$Code = @\'
+using System;
+using System.Runtime.InteropServices;
+
+public class NativeCreds {
+    [DllImport(\"Advapi32.dll\", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern bool CredReadW(
+        string target,
+        uint type,
+        int reserved,
+        out IntPtr credentialPtr
+    );
+
+    [DllImport(\"Advapi32.dll\", SetLastError = true)]
+    public static extern void CredFree(IntPtr buffer);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct CREDENTIAL {
+        public uint Flags;
+        public uint Type;
+        public string TargetName;
+        public string Comment;
+        public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;
+        public uint CredentialBlobSize;
+        public IntPtr CredentialBlob;
+        public uint Persist;
+        public uint AttributeCount;
+        public IntPtr Attributes;
+        public string TargetAlias;
+        public string UserName;
+    }
+}
+\'@
+
+if (-not (\"NativeCreds\" -as [type])) {
+    Add-Type -TypeDefinition $Code
+}
+
+$credPtr = [IntPtr]::Zero
+
+if ([NativeCreds]::CredReadW($TargetName, $CredentialType, 0, [ref]$credPtr)) {
+    try {
+        $cred = [System.Runtime.InteropServices.Marshal]::PtrToStructure(
+            $credPtr,
+            [Type][NativeCreds+CREDENTIAL]
+        )
+
+        $bytes = New-Object byte[] $cred.CredentialBlobSize
+        [System.Runtime.InteropServices.Marshal]::Copy(
+            $cred.CredentialBlob,
+            $bytes,
+            0,
+            $cred.CredentialBlobSize
+        )
+
+        $password = [System.Text.Encoding]::Unicode.GetString($bytes).TrimEnd([char]0)
+
+        [Console]::WriteLine($cred.UserName)
+        [Console]::WriteLine($password)
+    }
+    finally {
+        [NativeCreds]::CredFree($credPtr)
+    }
+}
+else {
+    $win32Error = [System.Runtime.InteropServices.Marshal]::GetLastWin32Error()
+    [Console]::WriteLine(\"ERROR_CREDREAD_$win32Error\")
+    [Console]::WriteLine(\"ERROR_CREDREAD_$win32Error\")
+}''' ScriptOutput=> gCredentialManagerStringIA
+    Text.SplitText.Split Text: gCredentialManagerStringIA StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gCredencialesIA
+    IF gCredencialesIA.Count < 2 THEN
+        SET gEstadoAnalisisNovedadTextoNomina TO $'''ERROR'''
+        SET gMensajeError TO $'''No fue posible leer la credencial de IA desde Credential Manager'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Alias: %pCredentialAliasIA%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    SET gUsuarioCredentialIA TO gCredencialesIA[0]
+    SET gApiKeyIA TO gCredencialesIA[1]
+    IF IsEmpty(gApiKeyIA) THEN
+        SET gEstadoAnalisisNovedadTextoNomina TO $'''ERROR'''
+        SET gMensajeError TO $'''No fue posible recuperar la API key de IA desde Credential Manager'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Alias: %pCredentialAliasIA%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Credencial IA cargada | Proveedor: %pProveedorIA% | Alias: %pCredentialAliasIA% | Usuario: %gUsuarioCredentialIA%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    LOOP FOREACH CurrentItem IN gListaNovedadesTextoPendientes
+        SET gSeGeneroSalidaAnalisisActual TO False
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesPendienteTextoActual
+        IF gPartesPendienteTextoActual.Count < 14 THEN
+            Variables.IncreaseVariable Value: gTotalFilasTextoConErrorFormato IncrementValue: 1
+            SET gEstadoAnalisisNovedadTextoNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''Se recibio un pendiente textual de nomina con formato invalido'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        SET gArchivoOrigenActual TO gPartesPendienteTextoActual[0]
+        SET gHojaOrigenActual TO gPartesPendienteTextoActual[1]
+        SET gQuincenaHojaActual TO gPartesPendienteTextoActual[2]
+        SET gFilaExcelActual TO gPartesPendienteTextoActual[3]
+        SET gCiudadActual TO gPartesPendienteTextoActual[4]
+        SET gNombreEmpleadoActual TO gPartesPendienteTextoActual[5]
+        SET gCedulaFuenteActual TO gPartesPendienteTextoActual[6]
+        SET gAreaActual TO gPartesPendienteTextoActual[7]
+        SET gSueldoBaseTextoActual TO gPartesPendienteTextoActual[8]
+        SET gAuxExtralegalBaseTextoActual TO gPartesPendienteTextoActual[9]
+        SET gNovedadTextoOriginalActual TO gPartesPendienteTextoActual[10]
+        SET gTieneConceptosExplicitosActual TO gPartesPendienteTextoActual[11]
+        SET gMotivoPendienteTextoActual TO gPartesPendienteTextoActual[12]
+        SET gRequiereRevisionEntradaActual TO gPartesPendienteTextoActual[13]
+        IF IsEmpty(gNovedadTextoOriginalActual) THEN
+            Variables.IncreaseVariable Value: gTotalFilasTextoSinSalida IncrementValue: 1
+        ELSE
+            SET gSystemPromptIA TO $'''Eres un analizador de novedades textuales de nomina. Responde exclusivamente un JSON valido. No uses markdown. Devuelve un objeto con la llave fragments. Cada elemento de fragments
+  debe incluir exactamente estas llaves: indiceFragmento, textoFragmento, tipoSugeridoIA, montoMencionado, diasMencionados, requiereCalculo, tieneRespaldoEstructuralSugerido, confianzaIA, requiereRevision,
+  observacionTecnica. Reglas: tipoSugeridoIA solo puede ser uno de INCAPACIDAD, VACACIONES, LICENCIA, COMISION, BONO, DEDUCCION, OBSERVACION_GENERAL, NO_CLASIFICADO. montoMencionado debe ser texto vacio si no
+  hay monto explicito. diasMencionados debe ser texto vacio si no hay dias explicitos. requiereCalculo debe ser true solo si el texto describe un evento calculable y no trae un valor final materializado.
+  tieneRespaldoEstructuralSugerido debe ser true solo si el texto sugiere respaldo estructural claro; si hay duda deja false. confianzaIA solo puede ser ALTA, MEDIA o BAJA. requiereRevision debe ser true si
+  existe cualquier ambiguedad. No inventes conceptos del sistema ni codigos. Si el texto contiene varias novedades, separalas en varios fragmentos.'''
+            SET gUserPromptIA TO $'''Archivo origen: %gArchivoOrigenActual% | Hoja origen: %gHojaOrigenActual% | Quincena hoja: %gQuincenaHojaActual% | Fila Excel: %gFilaExcelActual% | Ciudad: %gCiudadActual% | Nombre empleado: %gNombreEmpleadoActual% | Cedula fuente: %gCedulaFuenteActual% | Area: %gAreaActual% | Sueldo base texto: %gSueldoBaseTextoActual% | Aux extralegal base texto: %gAuxExtralegalBaseTextoActual% | Novedad texto original: %gNovedadTextoOriginalActual% | Tiene conceptos explicitos: %gTieneConceptosExplicitosActual% | Motivo pendiente texto: %gMotivoPendienteTextoActual%'''
+            DISABLE SET gUserPromptIA TO $'''Archivo origen: %gArchivoOrigenActual%
+  Hoja origen: %gHojaOrigenActual%
+  Quincena hoja: %gQuincenaHojaActual%
+  Fila Excel: %gFilaExcelActual%
+  Ciudad: %gCiudadActual%
+  Nombre empleado: %gNombreEmpleadoActual%
+  Cedula fuente: %gCedulaFuenteActual%
+  Area: %gAreaActual%
+  Sueldo base texto: %gSueldoBaseTextoActual%
+  Aux extralegal base texto: %gAuxExtralegalBaseTextoActual%
+  Novedad texto original: %gNovedadTextoOriginalActual%
+  Tiene conceptos explicitos: %gTieneConceptosExplicitosActual%
+  Motivo pendiente texto: %gMotivoPendienteTextoActual%'''
+            SET gRequestBodyIA TO $'''{\"model\":\"%pModeloIA%\",\"response_format\":{\"type\":\"json_object\"},\"temperature\":0,\"max_tokens\":700,\"messages\":[{\"role\":\"system\",\"content\":\"%gSystemPromptIA%\"}, {\"role\":\"user\",\"content\":\"%gUserPromptIA%\"}]}'''
+            DISABLE SET gRequestBodyIA TO $'''{\"model\":\"%pModeloIA%\",\"response_format\":{\"type\":\"json_object\"},\"temperature\":0,\"max_tokens\":700,\"messages\":[{\"role\":\"system\",\"content\":\"%gSystemPromptIA%\"},
+  {\"role\":\"user\",\"content\":\"%gUserPromptIA%\"}]}'''
+            Web.InvokeWebService.InvokeWebService Url: pEndpointIA Method: Web.Method.Post Accept: $'''application/json''' ContentType: $'''application/json''' ConnectionTimeout: pTimeoutIAsegundos FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: False UserAgent: $'''Mozilla/5.0 (Windows NT 10.0; Win64; x64)''' Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True RequestBody: gRequestBodyIA CustomHeaders: $'''Authorization: Bearer %gApiKeyIA%''' ResponseHeaders=> gWebServiceResponseHeaders Response=> gWebServiceResponse StatusCode=> gStatusCodeIA
+            IF gStatusCodeIA < 200 OR gStatusCodeIA > 299 THEN
+                SET gResultadoFallbackActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneConceptosExplicitosActual%|%gMotivoPendienteTextoActual%|1|%gNovedadTextoOriginalActual%|NO_CLASIFICADO|||False|False|NO_EJECUTADA|True|HTTP %gStatusCodeIA%'''
+                Variables.AddItemToList Item: gResultadoFallbackActual List: gListaNovedadesTextoAnalizadas
+                Variables.IncreaseVariable Value: gTotalNovedadesTextoAnalizadas IncrementValue: 1
+                SET gSeGeneroSalidaAnalisisActual TO True
+            ELSE
+                Variables.ConvertJsonToCustomObject Json: gWebServiceResponse CustomObject=> gResponseJsonIA
+                SET gMessageContentIA TO gResponseJsonIA['choices'][0]['message']['content']
+                IF IsEmpty(gMessageContentIA) THEN
+                    SET gResultadoFallbackActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneConceptosExplicitosActual%|%gMotivoPendienteTextoActual%|1|%gNovedadTextoOriginalActual%|NO_CLASIFICADO|||False|False|NO_EJECUTADA|True|Respuesta vacia de Mistral'''
+                    Variables.AddItemToList Item: gResultadoFallbackActual List: gListaNovedadesTextoAnalizadas
+                    Variables.IncreaseVariable Value: gTotalNovedadesTextoAnalizadas IncrementValue: 1
+                    SET gSeGeneroSalidaAnalisisActual TO True
+                ELSE
+                    Variables.ConvertJsonToCustomObject Json: gMessageContentIA CustomObject=> gMessageContentJsonIA
+                    SET gListaFragmentsIAActual TO gMessageContentJsonIA['fragments']
+                    LOOP FOREACH CurrentFragment IN gListaFragmentsIAActual
+                        SET gIndiceFragmentoActual TO CurrentFragment['indiceFragmento']
+                        IF IsEmpty(gIndiceFragmentoActual) THEN
+                            SET gIndiceFragmentoActual TO $'''1'''
+                        END
+                        SET gTextoFragmentoActual TO CurrentFragment['textoFragmento']
+                        IF IsEmpty(gTextoFragmentoActual) THEN
+                            SET gTextoFragmentoActual TO gNovedadTextoOriginalActual
+                        END
+                        SET gTipoSugeridoIAActual TO CurrentFragment['tipoSugeridoIA']
+                        IF IsEmpty(gTipoSugeridoIAActual) THEN
+                            SET gTipoSugeridoIAActual TO $'''NO_CLASIFICADO'''
+                        END
+                        SET gMontoMencionadoActual TO CurrentFragment['montoMencionado']
+                        SET gDiasMencionadosActual TO CurrentFragment['diasMencionados']
+                        SET gRequiereCalculoActual TO CurrentFragment['requiereCalculo']
+                        IF IsEmpty(gRequiereCalculoActual) THEN
+                            SET gRequiereCalculoActual TO False
+                        END
+                        SET gTieneRespaldoEstructuralActual TO CurrentFragment['tieneRespaldoEstructuralSugerido']
+                        IF IsEmpty(gTieneRespaldoEstructuralActual) THEN
+                            SET gTieneRespaldoEstructuralActual TO False
+                        END
+                        SET gConfianzaIAActual TO CurrentFragment['confianzaIA']
+                        IF IsEmpty(gConfianzaIAActual) THEN
+                            SET gConfianzaIAActual TO $'''BAJA'''
+                        END
+                        SET gRequiereRevisionActual TO CurrentFragment['requiereRevision']
+                        IF IsEmpty(gRequiereRevisionActual) THEN
+                            SET gRequiereRevisionActual TO True
+                        END
+                        SET gObservacionTecnicaActual TO CurrentFragment['observacionTecnica']
+                        SET gResultadoAnalisisLineaActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneConceptosExplicitosActual%|%gMotivoPendienteTextoActual%|%gIndiceFragmentoActual%|%gTextoFragmentoActual%|%gTipoSugeridoIAActual%|%gMontoMencionadoActual%|%gDiasMencionadosActual%|%gRequiereCalculoActual%|%gTieneRespaldoEstructuralActual%|%gConfianzaIAActual%|%gRequiereRevisionActual%|%gObservacionTecnicaActual%'''
+                        Variables.AddItemToList Item: gResultadoAnalisisLineaActual List: gListaNovedadesTextoAnalizadas
+                        Variables.IncreaseVariable Value: gTotalNovedadesTextoAnalizadas IncrementValue: 1
+                        SET gSeGeneroSalidaAnalisisActual TO True
+                    END
+                    IF gSeGeneroSalidaAnalisisActual = False THEN
+                        SET gResultadoFallbackActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneConceptosExplicitosActual%|%gMotivoPendienteTextoActual%|1|%gNovedadTextoOriginalActual%|NO_CLASIFICADO|||False|False|NO_EJECUTADA|True|Respuesta sin fragments utiles'''
+                        Variables.AddItemToList Item: gResultadoFallbackActual List: gListaNovedadesTextoAnalizadas
+                        Variables.IncreaseVariable Value: gTotalNovedadesTextoAnalizadas IncrementValue: 1
+                        SET gSeGeneroSalidaAnalisisActual TO True
+                    END
+                END
+            END
+            IF gSeGeneroSalidaAnalisisActual = True THEN
+                Variables.IncreaseVariable Value: gTotalFilasTextoAnalizadas IncrementValue: 1
+            ELSE
+                Variables.IncreaseVariable Value: gTotalFilasTextoSinSalida IncrementValue: 1
+            END
+        END
+    END
+    IF gTotalNovedadesTextoAnalizadas = 0 THEN
+        SET gEstadoAnalisisNovedadTextoNomina TO $'''SIN_RESULTADOS'''
+        SET gHayNovedadesTextoAnalizadas TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Analisis novedad texto nomina finalizado sin resultados estructurados''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoAnalisisNovedadTextoNomina TO $'''OK'''
+        SET gHayNovedadesTextoAnalizadas TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen analisis novedad texto nomina | Filas analizadas: %gTotalFilasTextoAnalizadas% | Filas sin salida: %gTotalFilasTextoSinSalida% | Errores formato: %gTotalFilasTextoConErrorFormato% | Fragmentos estructurados: %gTotalNovedadesTextoAnalizadas%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG analisis texto count | %gListaNovedadesTextoAnalizadas.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        IF gListaNovedadesTextoAnalizadas.Count > 0 THEN
+            File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG analisis texto item 0 | [%gListaNovedadesTextoAnalizadas[0]%]''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        END
+        IF gListaNovedadesTextoAnalizadas.Count > 1 THEN
+            File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG analisis texto item 1 | [%gListaNovedadesTextoAnalizadas[1]%]''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        END
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

@@ -1,23 +1,32 @@
 CALL SF_Init
-CALL SF_DescubrirArchivoEntrada
-SET pPrioridadTipoArchivo TO $'''NovedadesNomina'''
-LABEL CicloArchivosPendientes
-CALL SF_TomarSiguienteArchivoPendiente
-IF gHayArchivoPendiente = False THEN
-    File.WriteText File: gArchivoLog TextToWrite: $'''No hay mas archivos pendientes para procesar''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
-ELSE IF gTipoPreliminarArchivo = $'''NovedadesNomina''' THEN
-    CALL SF_ValidarEstructuraNovedadesNomina
-    IF gArchivoNominaValido = True THEN
-        CALL SF_LeerNovedadesNominaHojasValidas
-        IF gHayRegistrosNominaLeidos = True THEN
-            CALL SF_ExpandirConceptosNomina
+IF gEstadoInicializacion = $'''OK''' THEN
+    CALL SF_DescubrirArchivoEntrada
+    SET pPrioridadTipoArchivo TO $'''NovedadesNomina'''
+    LABEL CicloArchivosPendientes
+    CALL SF_TomarSiguienteArchivoPendiente
+    IF gHayArchivoPendiente = False THEN
+        File.WriteText File: gArchivoLog TextToWrite: $'''No hay mas archivos pendientes para procesar''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE IF gTipoPreliminarArchivo = $'''NovedadesNomina''' THEN
+        CALL SF_ValidarEstructuraNovedadesNomina
+        IF gArchivoNominaValido = True THEN
+            CALL SF_LeerNovedadesNominaHojasValidas
+            IF gHayRegistrosNominaLeidos = True THEN
+                CALL SF_ExpandirConceptosNomina
+                IF gHayNovedadesTextoPendientes = True THEN
+                    CALL SF_AnalizarNovedadTextoNomina
+                END
+            END
         END
+        GOTO CicloArchivosPendientes
+    ELSE IF gTipoPreliminarArchivo = $'''HorasExtra''' THEN
+        File.WriteText File: gArchivoLog TextToWrite: $'''Archivo omitido en esta fase | Tipo: HorasExtra | Archivo: %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        GOTO CicloArchivosPendientes
+    ELSE
+        File.WriteText File: gArchivoLog TextToWrite: $'''Archivo omitido en esta fase | Tipo: NoClasificado | Archivo: %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        GOTO CicloArchivosPendientes
     END
-    GOTO CicloArchivosPendientes
-ELSE IF gTipoPreliminarArchivo = $'''HorasExtra''' THEN
-    File.WriteText File: gArchivoLog TextToWrite: $'''Archivo omitido en esta fase | Tipo: HorasExtra | Archivo: %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
-    GOTO CicloArchivosPendientes
 ELSE
-    File.WriteText File: gArchivoLog TextToWrite: $'''Archivo omitido en esta fase | Tipo: NoClasificado | Archivo: %gNombreArchivoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
-    GOTO CicloArchivosPendientes
+    IF Not(IsEmpty(gArchivoLog)) THEN
+        File.WriteText File: gArchivoLog TextToWrite: $'''Proceso detenido | SF_Init finalizo con estado: %gEstadoInicializacion% | Mensaje: %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
 END

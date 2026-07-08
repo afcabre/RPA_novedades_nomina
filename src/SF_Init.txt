@@ -7,10 +7,8 @@ SET gSesionAppAbierta TO False
 SET gAutenticado TO False
 SET gTotalArchivosAProcesar TO 0
 Text.ConvertDateTimeToText.FromCustomDateTime DateTime: gFechaHoraInicio CustomFormat: $'''yyyyMMdd_HHmmss''' Result=> gIdEjecucionTmp
-SET gIdEjecucion TO $'''HE_%gIdEjecucionTmp%'''
-SET pUrlAppNomina TO $'''https://qa.practiko.com.co/madrecol/'''
-SET pDirectorioEntrada TO $'''C:\\Dev\\Aspraco\\bandeja_trabajo'''
-SET pDirectorioLogs TO $'''C:\\Dev\\Aspraco\\bandeja_trabajo\\logs'''
+SET gIdEjecucion TO $'''RUN_%gIdEjecucionTmp%'''
+SET pRutaConfigJson TO $'''C:\\Dev\\Aspraco\\config\\config.json'''
 SET pUsaCredencialesSeguras TO True
 SET pMesNominaObjetivo TO $'''MARZO'''
 SET pAnoNominaObjetivo TO 2026
@@ -22,9 +20,27 @@ ON BLOCK ERROR all
     SET gEsErrorControlado TO True
     THROW ERROR
 END
-    # Validar requisitos mínimos ambiente para operación
-    IF (Folder.IfFolderExists.DoesNotExist Path: pDirectorioEntrada) THEN
-        SET gMensajeError TO $'''No se encontro el directorio de entrada configurado'''
+    # Leer configuracion IA desde config.json
+    IF (File.IfFile.DoesNotExist File: pRutaConfigJson) THEN
+        SET gMensajeError TO $'''No se encontro config.json para cargar la configuracion de IA'''
+        SET gEstadoInicializacion TO $'''ERROR'''
+        EXIT FUNCTION
+    END
+    File.ReadTextFromFile.ReadText File: pRutaConfigJson Encoding: File.TextFileEncoding.UTF8 Content=> gConfigJsonTexto
+    Variables.ConvertJsonToCustomObject Json: gConfigJsonTexto CustomObject=> gConfigJsonObjeto
+    SET pUrlAppNomina TO gConfigJsonObjeto.appNomina.url
+    SET pDirectorioEntrada TO gConfigJsonObjeto.rutas.directorioEntrada
+    SET pDirectorioSalidas TO gConfigJsonObjeto.rutas.directorioSalidas
+    SET pDirectorioLogs TO gConfigJsonObjeto.rutas.directorioLogs
+    SET pDirectorioPlantillas TO gConfigJsonObjeto.rutas.directorioPlantillas
+    SET pProveedorIA TO gConfigJsonObjeto.analisisNovedadTextoIA.proveedorIA
+    SET pModeloIA TO gConfigJsonObjeto.analisisNovedadTextoIA.modeloIA
+    SET pEndpointIA TO gConfigJsonObjeto.analisisNovedadTextoIA.endpointIA
+    SET pCredentialAliasIA TO gConfigJsonObjeto.analisisNovedadTextoIA.credentialAliasIA
+    SET pTimeoutIAsegundos TO gConfigJsonObjeto.analisisNovedadTextoIA.timeoutIAsegundos
+    SET pDebugIA TO gConfigJsonObjeto.analisisNovedadTextoIA.debugIA
+    IF IsEmpty(pDirectorioLogs) THEN
+        SET gMensajeError TO $'''La configuracion del directorio de logs esta incompleta en config.json'''
         SET gEstadoInicializacion TO $'''ERROR'''
         EXIT FUNCTION
     END
@@ -34,7 +50,49 @@ END
     SET gArchivoLog TO $'''%pDirectorioLogs%\\Log_%gIdEjecucion%.txt'''
     File.WriteText File: gArchivoLog TextToWrite: $'''Inicio ejecucion | Proceso: Horas Extra | Id: %gIdEjecucion%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     File.WriteText File: gArchivoLog TextToWrite: $'''Fecha inicio: %gFechaHoraInicio%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF IsEmpty(pDirectorioEntrada) OR IsEmpty(pDirectorioSalidas) OR IsEmpty(pDirectorioPlantillas) THEN
+        SET gMensajeError TO $'''La configuracion de rutas esta incompleta en config.json'''
+        SET gEstadoInicializacion TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    # Validar requisitos mínimos ambiente para operación
+    IF (Folder.IfFolderExists.DoesNotExist Path: pDirectorioEntrada) THEN
+        SET gMensajeError TO $'''No se encontro el directorio de entrada configurado'''
+        SET gEstadoInicializacion TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Directorio entrada: %pDirectorioEntrada%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF (Folder.IfFolderExists.DoesNotExist Path: pDirectorioSalidas) THEN
+        Folder.Create FolderPath: pDirectorioEntrada FolderName: $'''salidas''' Folder=> gWorkingDirectorySalidas
+    END
+    IF (Folder.IfFolderExists.DoesNotExist Path: pDirectorioPlantillas) THEN
+        SET gMensajeError TO $'''No se encontro el directorio de plantillas configurado'''
+        SET gEstadoInicializacion TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Directorio plantillas: %pDirectorioPlantillas%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
     File.WriteText File: gArchivoLog TextToWrite: $'''OK | Directorio de entrada encontrado | %pDirectorioEntrada%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Directorio de salidas disponible | %pDirectorioSalidas%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Directorio de plantillas encontrado | %pDirectorioPlantillas%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF pPeriodoNominaObjetivo = $'''1RA QUINCENA''' THEN
+        SET gPeriodoNominaToken TO $'''1Q'''
+    ELSE IF pPeriodoNominaObjetivo = $'''2DA QUINCENA''' THEN
+        SET gPeriodoNominaToken TO $'''2Q'''
+    ELSE
+        SET gPeriodoNominaToken TO $'''MC'''
+    END
+    SET gNombreArchivoAnalisisNovedades TO $'''Analisis_Novedades_%pMesNominaObjetivo%_%pAnoNominaObjetivo%_%gPeriodoNominaToken%_%gIdEjecucion%.xlsx'''
+    SET gRutaPlantillaAnalisisNovedades TO $'''%pDirectorioPlantillas%\\Plantilla_Analisis_Novedades.xlsx'''
+    SET gRutaArchivoAnalisisNovedades TO $'''%pDirectorioSalidas%\\%gNombreArchivoAnalisisNovedades%'''
+    IF (File.IfFile.DoesNotExist File: gRutaPlantillaAnalisisNovedades) THEN
+        SET gMensajeError TO $'''No se encontro la plantilla base de analisis de novedades'''
+        SET gEstadoInicializacion TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Plantilla: %gRutaPlantillaAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Plantilla analisis novedades encontrada | %gRutaPlantillaAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Archivo analisis novedades configurado | %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     Folder.GetFiles Folder: pDirectorioEntrada FileFilter: $'''*.xlsx''' IncludeSubfolders: False FailOnAccessDenied: True SortBy1: Folder.SortBy.NoSort SortDescending1: False SortBy2: Folder.SortBy.NoSort SortDescending2: False SortBy3: Folder.SortBy.NoSort SortDescending3: False Files=> gListaArchivosAProcesar
     SET gTotalArchivosAProcesar TO gListaArchivosAProcesar.Count
     File.WriteText File: gArchivoLog TextToWrite: $'''Total archivos Excel a procesar: %gTotalArchivosAProcesar%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
@@ -56,6 +114,13 @@ END
     ELSE
         File.WriteText File: gArchivoLog TextToWrite: $'''OK | URL aplicativo inicializada | %pUrlAppNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     END
+    IF IsEmpty(pProveedorIA) OR IsEmpty(pModeloIA) OR IsEmpty(pEndpointIA) OR IsEmpty(pCredentialAliasIA) THEN
+        SET gMensajeError TO $'''La configuracion analisisNovedadTextoIA esta incompleta en config.json'''
+        SET gEstadoInicializacion TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Configuracion IA cargada | Proveedor: %pProveedorIA% | Modelo: %pModeloIA% | Alias credencial: %pCredentialAliasIA% | Timeout: %pTimeoutIAsegundos% | Debug: %pDebugIA%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     # Validar y cargar credenciales
     IF pUsaCredencialesSeguras = True THEN
         Scripting.RunPowershellScript.RunScript Script: $'''$TargetName = \"practiko\"

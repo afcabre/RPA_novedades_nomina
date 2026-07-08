@@ -22,11 +22,24 @@ La fuente Excel puede contener varios patrones distintos:
 
 Por eso antes de resolver catalogo y antes de registrar en la UI debe existir una capa de conciliacion.
 
+## Alcance especifico de conciliacion
+
+Este subflujo si debe encargarse de los casos mixtos. Es decir:
+
+- cuando una fila trae uno o varios valores en columnas que ya generan conceptos candidatos
+- y esa misma fila trae texto adicional con novedades que no quedaron materializadas
+
+La conciliacion debe:
+
+- conservar los conceptos ya respaldados por columna
+- identificar si el texto adicional complementa un concepto existente, describe un evento calculable o introduce un pendiente sin respaldo
+- dejar trazabilidad comun por fila para que el usuario revise el conjunto y no piezas aisladas
+
 ## Relacion con subflujos previos y posteriores
 
 - `SF_ExpandirConceptosNomina` genera items candidatos
 - `SF_AnalizarNovedadTextoNomina` segmenta y estructura pendientes textuales con apoyo de IA controlada
-- `SF_ConciliarItemsNomina` clasifica respaldo y registrabilidad
+- `SF_ConciliarItemsNomina` clasifica respaldo y registrabilidad, incluyendo filas mixtas con conceptos en columnas y texto adicional no materializado
 - `SF_DescomponerConceptosNomina` puede operar antes o despues segun tipo de item
 - `SF_ResolverCatalogoConceptosNomina` debe operar sobre items ya conciliados
 
@@ -92,6 +105,15 @@ Cada item conciliado debe conservar los campos originales y agregar al menos:
 - `RequiereCalculo`
 - `MetodoConciliacion`
 - `ConfianzaConciliacion`
+
+Adicionalmente, para trabajo operativo en Excel de revision, se recomienda agregar:
+
+- `IdEjecucion`
+- `LlaveFilaFuente`
+- `OrigenAnalisis`
+- `EstadoRevisionUsuario`
+- `DecisionUsuario`
+- `ObservacionUsuario`
 
 Valores sugeridos:
 
@@ -163,6 +185,21 @@ La IA no debe autorizar montos no respaldados.
 - total texto sin respaldo
 - total conflictos
 - resumen final
+
+## Persistencia operativa recomendada
+
+`SF_ConciliarItemsNomina` no debe crear un archivo aislado aparte. Debe escribir en el mismo archivo Excel de evidencias de la corrida, generado por `IdEjecucion` a partir de una plantilla base.
+
+Hojas sugeridas para ese archivo:
+
+- `novedadesTexto`
+- `conciliacionNomina`
+- `catalogoNomina`
+- `revisionUI`
+
+La hoja `conciliacionNomina` debe quedar orientada a validacion humana, con listas o validaciones de datos definidas desde la plantilla base.
+
+Su estructura definitiva debe ajustarse despues de estabilizar la hoja `novedadesTexto`, para no sobredisenar la primera version.
 
 ## Manejo de errores
 

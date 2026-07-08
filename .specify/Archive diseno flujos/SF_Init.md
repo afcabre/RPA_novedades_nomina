@@ -6,13 +6,31 @@ Documento base del subflujo `SF_Init` para el RPA de registro de novedades en ap
 
 Preparar el entorno de ejecucion, validar prerequisitos, cargar la configuracion base, construir identificadores y rutas de trabajo, preparar logging y dejar abierto el navegador sobre la URL del aplicativo para subflujos posteriores. La deteccion y procesamiento de archivos Excel se delega a subflujos posteriores.
 
+## Rutas operativas minimas
+
+La configuracion de rutas debe distinguir al menos:
+
+- `directorioEntrada`
+- `directorioSalidas`
+- `directorioLogs`
+- `directorioPlantillas`
+
+`SF_Init` debe validar y dejar disponibles estas rutas para evitar que los subflujos de descubrimiento tomen como entrada archivos generados por la propia automatizacion.
+
+## Ajuste vigente
+
+Aunque el resto de variables operativas aun no se ha migrado por completo a `config.json`, `SF_Init` debe leer desde ya la llave `analisisNovedadTextoIA` para dejar disponibles las variables requeridas por `SF_AnalizarNovedadTextoNomina`.
+
 ## Firma sugerida del subflujo
 
 ### Entradas
 
 - `pUrlAppNomina` `Text`
 - `pDirectorioEntrada` `Text`
+- `pDirectorioSalidas` `Text`
 - `pDirectorioLogs` `Text`
+- `pDirectorioPlantillas` `Text`
+- `pRutaConfigJson` `Text`
 - `pUsaCredencialesSeguras` `Boolean`
 - `pUsuarioNomina` `Text`
 - `pNombreProceso` `Text`
@@ -29,6 +47,15 @@ Preparar el entorno de ejecucion, validar prerequisitos, cargar la configuracion
 - `gUsuarioNomina` `Text`
 - `gArchivosPendientes` `List`
 - `gTotalArchivosPendientes` `Number`
+
+### Variables IA cargadas en Init
+
+- `pProveedorIA` `Text`
+- `pModeloIA` `Text`
+- `pEndpointIA` `Text`
+- `pCredentialAliasIA` `Text`
+- `pTimeoutIAsegundos` `Number`
+- `pDebugIA` `Boolean`
 
 ## Flujo literal en PAD
 
