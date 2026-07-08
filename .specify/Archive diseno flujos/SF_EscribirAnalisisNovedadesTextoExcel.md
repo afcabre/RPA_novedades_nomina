@@ -44,7 +44,7 @@ No se recomienda renombrar destructivamente la hoja base si luego puede reutiliz
 Cada item de `gListaNovedadesTextoAnalizadas` debe venir con este orden:
 
 ```text
-ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuente|Area|SueldoBaseTexto|AuxExtralegalBaseTexto|NovedadTextoOriginal|TieneConceptosExplicitos|MotivoPendienteTexto|IndiceFragmento|TextoFragmento|TipoSugeridoIA|MontoMencionado|DiasMencionados|RequiereCalculo|TieneRespaldoEstructuralSugerido|ConfianzaIA|RequiereRevision|ObservacionTecnica
+ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuente|Area|SueldoBaseTexto|AuxExtralegalBaseTexto|NovedadTextoOriginal|TieneRegistrosFuenteMaterializados|MotivoPendienteTexto|IndiceFragmento|TextoFragmento|TipoSugeridoIA|MontoMencionado|DiasMencionados|RequiereCalculo|TieneRespaldoEstructuralSugerido|ConfianzaIA|RequiereRevision|ObservacionTecnica
 ```
 
 ## Columnas V1 de la hoja `novedadesTexto`
@@ -127,4 +127,3 @@ Este subflujo:
 - no cruza aun contra registros materiales de nomina
 
 Su responsabilidad es solo persistencia consistente de evidencia.
-

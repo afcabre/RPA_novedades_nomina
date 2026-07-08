@@ -34,7 +34,7 @@ Por eso se necesita una capa intermedia de catalogo y equivalencias.
 - `SF_ExpandirConceptosNomina` genera `registrosFuenteNovedadesNomina`
 - `SF_AnalizarNovedadTextoNomina` segmenta texto libre pendiente
 - `SF_ConciliarItemsNomina` deja una salida unificada con origen y estado de conciliacion
-- `SF_ResolverCatalogoConceptosNomina` solo toma la parte material conciliada y la cruza contra un catalogo por empresa
+- `SF_ResolverCatalogoConceptosNomina` consume toda `gListaConciliacionNovedadesNomina` y resuelve cada fila contra catalogo usando la mejor base disponible
 - subflujos posteriores deben encargarse de:
   - resolver empleado en el sistema
   - abrir formulario o pantalla correcta
@@ -112,7 +112,8 @@ Ruta esperada completa:
 Se recomienda separar:
 
 - catalogo base del sistema por empresa
-- asociaciones deterministicas desde `ConceptoFuenteExcel`
+- asociaciones configuradas desde `ConceptoFuenteExcel`
+- asociaciones configuradas desde `TipoSugeridoIA`, cuando aplique una ruta cerrada por tipo de evento
 
 Cada concepto del catalogo base deberia permitir algo como:
 
@@ -127,6 +128,13 @@ Cada concepto del catalogo base deberia permitir algo como:
 Cada asociacion deberia permitir algo como:
 
 - `ConceptoFuenteNormalizado`
+- `CodigosSistemaCandidato`
+- `Activo`
+- `Observaciones`
+
+Cada asociacion por tipo de evento deberia permitir algo como:
+
+- `TipoEventoNormalizado`
 - `CodigosSistemaCandidato`
 - `Activo`
 - `Observaciones`
@@ -166,6 +174,14 @@ Se recomienda una raiz con version y lista de empresas:
           "codigosSistemaCandidato": ["BNP001"],
           "activo": true,
           "observaciones": "Asociacion exacta conocida"
+        }
+      ],
+      "asociacionesTipoEvento": [
+        {
+          "tipoEventoNormalizado": "incapacidad",
+          "codigosSistemaCandidato": ["INC001", "INC002"],
+          "activo": true,
+          "observaciones": "Candidatos posibles para incapacidades"
         }
       ]
     }
@@ -207,8 +223,8 @@ Reglas iniciales sugeridas:
 
 La resolucion debe seguir este orden:
 
-1. coincidencia exacta deterministica en asociaciones configuradas
-2. coincidencia deterministica por tipo de evento, si existe mapeo cerrado por empresa
+1. coincidencia exacta deterministica en asociaciones configuradas desde `ConceptoFuenteExcel`
+2. coincidencia deterministica por tipo de evento, si existe mapeo cerrado por empresa en `asociacionesTipoEvento`
 3. sugerencia IA sobre lista cerrada de candidatos configurados, solo si el switch correspondiente esta activo
 4. sugerencia IA sobre catalogo completo de la empresa, solo si el switch correspondiente esta activo y no existe resolucion deterministica
 
@@ -261,7 +277,7 @@ Cada registro de salida debe conservar toda la informacion de entrada y agregar 
 Valores sugeridos:
 
 - `EstadoResolucionCatalogo = RESUELTO | AMBIGUO | NO_ENCONTRADO`
-- `MetodoResolucionCatalogo = REGLA_EXACTA | REGLA_CONFIGURADA | REGLA_TIPO_EVENTO | IA_CANDIDATOS | IA_CATALOGO | PENDIENTE_VALIDACION`
+- `MetodoResolucionCatalogo = REGLA_EXACTA | REGLA_CONFIGURADA | REGLA_TIPO_EVENTO | IA_CANDIDATOS | IA_CATALOGO`
 - `ConfianzaResolucionCatalogo = ALTA | MEDIA | BAJA`
 
 ## Casos que debe manejar
@@ -282,7 +298,7 @@ Resultado esperado:
 - `AMBIGUO`
 - `IA_CANDIDATOS` si existe lista cerrada y el switch esta activo
 - `IA_CATALOGO` si no existe lista cerrada y el switch correspondiente esta activo
-- `PENDIENTE_VALIDACION` si no hay IA habilitada o no produce salida suficiente
+- si no hay IA habilitada o no produce salida suficiente, la fila conserva su ultimo metodo efectivo y queda con `RequiereValidacionUsuario = True`
 - `BAJA`
 - `RequiereValidacionUsuario = True`
 
@@ -291,7 +307,7 @@ Resultado esperado:
 Resultado esperado:
 
 - `NO_ENCONTRADO`
-- `PENDIENTE_VALIDACION` o sugerencia IA con catalogo completo segun switch activo
+- `IA_CATALOGO` o permanencia sin resolucion automatica segun switch activo
 - `BAJA`
 - `RequiereValidacionUsuario = True`
 
@@ -315,7 +331,7 @@ Resultado esperado:
 Resultado esperado:
 
 - `BaseResolucionCatalogo = TEXTO_NOVEDAD`
-- `MetodoResolucionCatalogo = IA_CATALOGO` o `PENDIENTE_VALIDACION`
+- `MetodoResolucionCatalogo = IA_CATALOGO` o permanencia sin resolucion automatica
 - `EstadoResolucionCatalogo = AMBIGUO | NO_ENCONTRADO | RESUELTO`
 - `RequiereValidacionUsuario = True` salvo una regla cerrada extremadamente clara
 

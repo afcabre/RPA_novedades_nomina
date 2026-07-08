@@ -99,13 +99,13 @@ ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuen
 Formato por item:
 
 ```text
-ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuente|Area|SueldoBaseTexto|AuxExtralegalBaseTexto|NovedadTextoOriginal|TieneConceptosExplicitos|MotivoPendienteTexto|RequiereRevision
+ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuente|Area|SueldoBaseTexto|AuxExtralegalBaseTexto|NovedadTextoOriginal|TieneRegistrosFuenteMaterializados|MotivoPendienteTexto|RequiereRevision
 ```
 
 ### Semantica de los ultimos campos de `gListaNovedadesTextoPendientes`
 
-- `TieneConceptosExplicitos = True | False`
-- `MotivoPendienteTexto = TEXTO_SIN_CONCEPTO_MATERIALIZADO | TEXTO_ADICIONAL_NO_RESPALDADO | TEXTO_REQUIERE_ANALISIS`
+- `TieneRegistrosFuenteMaterializados = True | False`
+- `MotivoPendienteTexto = TEXTO_SIN_REGISTRO_FUENTE_MATERIALIZADO | TEXTO_ADICIONAL_NO_RESPALDADO | TEXTO_REQUIERE_ANALISIS`
 - `RequiereRevision = True | False`
 
 ## Unidad de salida recomendada
@@ -153,13 +153,13 @@ Cada novedad pendiente debe preservar la fila para analisis posterior, sin conve
 - `SueldoBaseTexto`
 - `AuxExtralegalBaseTexto`
 - `NovedadTextoOriginal`
-- `TieneConceptosExplicitos`
+- `TieneRegistrosFuenteMaterializados`
 - `MotivoPendienteTexto`
 - `RequiereRevision`
 
 Valores sugeridos para `MotivoPendienteTexto`:
 
-- `TEXTO_SIN_CONCEPTO_MATERIALIZADO`
+- `TEXTO_SIN_REGISTRO_FUENTE_MATERIALIZADO`
 - `TEXTO_ADICIONAL_NO_RESPALDADO`
 - `TEXTO_REQUIERE_ANALISIS`
 
@@ -203,7 +203,7 @@ Ejemplos:
   - no genera concepto explicito
   - si genera pendiente textual
 
-## Criterio minimo para `TieneConceptosExplicitos`
+## Criterio minimo para `TieneRegistrosFuenteMaterializados`
 
 - `True` si la fila genero al menos un item en `gListaRegistrosFuenteNovedadesNomina`
 - `False` si no genero ninguno

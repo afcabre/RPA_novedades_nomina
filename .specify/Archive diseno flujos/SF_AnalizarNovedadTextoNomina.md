@@ -49,7 +49,7 @@ Intentar resolver esto con heuristica amplia en PAD seria fragil y costoso de ma
 Formato esperado por item de `gListaNovedadesTextoPendientes`:
 
 ```text
-ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuente|Area|SueldoBaseTexto|AuxExtralegalBaseTexto|NovedadTextoOriginal|TieneConceptosExplicitos|MotivoPendienteTexto|RequiereRevision
+ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuente|Area|SueldoBaseTexto|AuxExtralegalBaseTexto|NovedadTextoOriginal|TieneRegistrosFuenteMaterializados|MotivoPendienteTexto|RequiereRevision
 ```
 
 ## Salidas sugeridas
@@ -65,7 +65,7 @@ ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuen
 Formato recomendado por item de `gListaNovedadesTextoAnalizadas`:
 
 ```text
-ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuente|Area|SueldoBaseTexto|AuxExtralegalBaseTexto|NovedadTextoOriginal|TieneConceptosExplicitos|MotivoPendienteTexto|IndiceFragmento|TextoFragmento|TipoSugeridoIA|MontoMencionado|DiasMencionados|RequiereCalculo|TieneRespaldoEstructuralSugerido|ConfianzaIA|RequiereRevision|ObservacionTecnica
+ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuente|Area|SueldoBaseTexto|AuxExtralegalBaseTexto|NovedadTextoOriginal|TieneRegistrosFuenteMaterializados|MotivoPendienteTexto|IndiceFragmento|TextoFragmento|TipoSugeridoIA|MontoMencionado|DiasMencionados|RequiereCalculo|TieneRespaldoEstructuralSugerido|ConfianzaIA|RequiereRevision|ObservacionTecnica
 ```
 
 ## Rol exacto de la IA
@@ -398,7 +398,7 @@ Asignar:
 - `gSueldoBaseTextoActual = gPartesPendienteTextoActual[8]`
 - `gAuxExtralegalBaseTextoActual = gPartesPendienteTextoActual[9]`
 - `gNovedadTextoOriginalActual = gPartesPendienteTextoActual[10]`
-- `gTieneConceptosExplicitosActual = gPartesPendienteTextoActual[11]`
+- `gTieneRegistrosFuenteMaterializadosActual = gPartesPendienteTextoActual[11]`
 - `gMotivoPendienteTextoActual = gPartesPendienteTextoActual[12]`
 - `gRequiereRevisionEntradaActual = gPartesPendienteTextoActual[13]`
 
@@ -438,7 +438,7 @@ Definir dos variables de texto:
 - sueldo base
 - aux extralegal base
 - novedad original
-- tiene conceptos explicitos
+- tiene registros fuente materializados
 - motivo del pendiente
 
 #### 5. Construccion del payload JSON
@@ -519,7 +519,7 @@ Por cada fragmento:
 Construir una linea PAD del contrato final:
 
 ```text
-ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuente|Area|SueldoBaseTexto|AuxExtralegalBaseTexto|NovedadTextoOriginal|TieneConceptosExplicitos|MotivoPendienteTexto|IndiceFragmento|TextoFragmento|TipoSugeridoIA|MontoMencionado|DiasMencionados|RequiereCalculo|TieneRespaldoEstructuralSugerido|ConfianzaIA|RequiereRevision|ObservacionTecnica
+ArchivoOrigen|HojaOrigen|QuincenaHoja|FilaExcel|Ciudad|NombreEmpleado|CedulaFuente|Area|SueldoBaseTexto|AuxExtralegalBaseTexto|NovedadTextoOriginal|TieneRegistrosFuenteMaterializados|MotivoPendienteTexto|IndiceFragmento|TextoFragmento|TipoSugeridoIA|MontoMencionado|DiasMencionados|RequiereCalculo|TieneRespaldoEstructuralSugerido|ConfianzaIA|RequiereRevision|ObservacionTecnica
 ```
 
 Agregar a:

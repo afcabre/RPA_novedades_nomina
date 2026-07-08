@@ -298,7 +298,7 @@ Hojas sugeridas para ese archivo:
 - `registrosFuenteNovedadesNomina`
 - `novedadesTexto`
 - `conciliacionNovedadesNomina`
-- `catalogoNomina`
+- hoja futura de resolucion de catalogo, con nombre por definir
 - `revisionUI`
 
 La hoja `conciliacionNovedadesNomina` debe quedar orientada a validacion humana, con listas o validaciones de datos definidas desde la plantilla base.
