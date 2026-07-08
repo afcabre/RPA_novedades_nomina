@@ -40,7 +40,6 @@ La conciliacion debe:
 - `SF_ExpandirConceptosNomina` genera registros fuente materializados
 - `SF_AnalizarNovedadTextoNomina` segmenta y estructura pendientes textuales con apoyo de IA controlada
 - `SF_ConciliarItemsNomina` clasifica respaldo y registrabilidad, incluyendo filas mixtas con conceptos en columnas y texto adicional no materializado
-- `SF_DescomponerConceptosNomina` puede operar antes o despues segun tipo de item
 - `SF_ResolverCatalogoConceptosNomina` debe operar sobre registros ya conciliados
 
 ## Entrada esperada
@@ -49,17 +48,21 @@ La conciliacion debe:
 - `gTotalRegistrosFuenteNovedadesNomina` `Number`
 - `gListaNovedadesTextoAnalizadas` `List`
 - `gTotalNovedadesTextoAnalizadas` `Number`
+- `gRutaArchivoAnalisisNovedades` `Text`
+- `gIdEjecucion` `Text`
 - `gArchivoLog` `Text`
 
 ## Salidas sugeridas
 
 - `gEstadoConciliacionNomina` `Text`
 - `gMensajeError` `Text`
-- `gListaItemsNominaConciliados` `List`
-- `gTotalItemsNominaConciliados` `Number`
-- `gTotalItemsNominaDerivadosCalculables` `Number`
-- `gTotalItemsNominaTextoSinRespaldo` `Number`
-- `gTotalItemsNominaConflicto` `Number`
+- `gListaConciliacionNovedadesNomina` `List`
+- `gTotalConciliacionNovedadesNomina` `Number`
+- `gHayConciliacionNovedadesNomina` `Boolean`
+- `gTotalConciliadosNomina` `Number`
+- `gTotalDerivadosCalculablesNomina` `Number`
+- `gTotalTextoSinRespaldoNomina` `Number`
+- `gTotalConflictosNomina` `Number`
 
 ## Estados de conciliacion
 
@@ -121,6 +124,106 @@ Valores sugeridos:
 - `PermiteAutoRegistro = True | False`
 - `MetodoConciliacion = REGLA | PATRON | IA | MANUAL`
 - `ConfianzaConciliacion = ALTA | MEDIA | BAJA`
+
+## Contrato V1 de salida en PAD
+
+Para la primera version conviene dejar un contrato tabular, plano y trazable.
+
+Formato por item en `gListaConciliacionNovedadesNomina`:
+
+```text
+IdEjecucion|LlaveFilaFuente|OrigenAnalisis|ArchivoOrigen|HojaOrigen|FilaExcel|Ciudad|NombreEmpleado|CedulaFuente|Area|SueldoBaseTexto|AuxExtralegalBaseTexto|ConceptoFuenteExcel|ColumnaOrigenExcel|ValorConceptoFuente|NovedadTextoOriginal|TextoFragmentoRelacionado|TipoSugeridoIA|MontoMencionadoIA|DiasMencionadosIA|EstadoConciliacion|FuenteAutoritativa|PermiteAutoRegistro|RequiereCalculo|MetodoConciliacion|ConfianzaConciliacion|MotivoRevision|EstadoRevisionUsuario|DecisionUsuario|ObservacionUsuario
+```
+
+## Llave minima de cruce
+
+La conciliacion debe agrupar por una llave comun de fila fuente:
+
+```text
+ArchivoOrigen|HojaOrigen|FilaExcel
+```
+
+Sobre esa llave:
+
+- uno o varios registros fuente pueden venir de `gListaRegistrosFuenteNovedadesNomina`
+- cero, uno o varios fragmentos textuales pueden venir de `gListaNovedadesTextoAnalizadas`
+
+## Reglas V1 de conciliacion
+
+La primera version no debe sobredisenarse. Debe operar con reglas cerradas.
+
+### Regla 1. Registro fuente sin texto analizado asociado
+
+Si una llave de fila tiene registros fuente y no tiene fragmentos IA:
+
+- emitir una fila por cada registro fuente
+- `EstadoConciliacion = CONCILIADO`
+- `FuenteAutoritativa = COLUMNA`
+- `PermiteAutoRegistro = True`
+- `RequiereCalculo = False`
+- `MetodoConciliacion = REGLA`
+- `ConfianzaConciliacion = ALTA`
+
+### Regla 2. Texto analizado sin registros fuente
+
+Si una llave de fila no tiene registros fuente y si tiene fragmentos IA:
+
+- emitir una fila por cada fragmento IA
+- si `RequiereCalculo = True` y el tipo es calculable, por ejemplo `INCAPACIDAD`, marcar:
+  - `EstadoConciliacion = DERIVADO_CALCULABLE`
+  - `FuenteAutoritativa = CALCULO`
+  - `PermiteAutoRegistro = True`
+- en los demas casos marcar:
+  - `EstadoConciliacion = TEXTO_SIN_RESPALDO`
+  - `FuenteAutoritativa = TEXTO`
+  - `PermiteAutoRegistro = False`
+
+### Regla 3. Fila mixta con registros fuente y fragmentos IA
+
+Si una misma llave tiene ambos:
+
+- emitir primero una fila por cada registro fuente
+- si existen fragmentos con `TieneRespaldoEstructuralSugerido = True` y claramente describen el mismo registro, dejar:
+  - `EstadoConciliacion = CONCILIADO`
+  - `FuenteAutoritativa = MIXTA`
+- si existen fragmentos adicionales no respaldados por columna:
+  - emitir fila adicional por fragmento
+  - `EstadoConciliacion = TEXTO_SIN_RESPALDO`
+  - `PermiteAutoRegistro = False`
+
+### Regla 4. Conflicto
+
+Si el texto menciona un monto explicito y existe un registro fuente en la misma fila, pero el monto no coincide materialmente:
+
+- `EstadoConciliacion = CONFLICTO`
+- `FuenteAutoritativa = MIXTA`
+- `PermiteAutoRegistro = False`
+- `MetodoConciliacion = REGLA`
+- `ConfianzaConciliacion = MEDIA` o `BAJA`
+
+## Hoja Excel objetivo
+
+La salida conciliada no debe escribirse en `novedadesTexto` ni en `registrosFuenteNovedadesNomina`.
+
+Debe persistirse en una hoja dedicada:
+
+- `conciliacionNovedadesNomina`
+
+## Subflujo hermano de persistencia
+
+Para mantener el patron ya adoptado, `SF_ConciliarItemsNomina` no debe escribir directamente al Excel.
+
+Debe existir un subflujo separado:
+
+- `SF_EscribirConciliacionNovedadesNominaExcel`
+
+Ese subflujo debe:
+
+- tomar `gListaConciliacionNovedadesNomina`
+- escribirla en la hoja `conciliacionNovedadesNomina`
+- crear la hoja desde `Sheet1` si aun no existe
+- escribir cabeceras V1
+- dejar columnas de revision humana inicializadas
 
 ## Casos iniciales a cubrir
 
@@ -192,12 +295,13 @@ La IA no debe autorizar montos no respaldados.
 
 Hojas sugeridas para ese archivo:
 
+- `registrosFuenteNovedadesNomina`
 - `novedadesTexto`
-- `conciliacionNomina`
+- `conciliacionNovedadesNomina`
 - `catalogoNomina`
 - `revisionUI`
 
-La hoja `conciliacionNomina` debe quedar orientada a validacion humana, con listas o validaciones de datos definidas desde la plantilla base.
+La hoja `conciliacionNovedadesNomina` debe quedar orientada a validacion humana, con listas o validaciones de datos definidas desde la plantilla base.
 
 Su estructura definitiva debe ajustarse despues de estabilizar la hoja `novedadesTexto`, para no sobredisenar la primera version.
 
@@ -216,10 +320,11 @@ Seguir el patron ya usado:
 Version 1:
 
 1. clasificar por reglas deterministicas
-2. detectar `Sin novedad`
-3. detectar incapacidad
-4. detectar montos en texto y contrastarlos con columnas
-5. marcar como no autorregistrable lo que solo viva en texto
+2. agrupar por `ArchivoOrigen|HojaOrigen|FilaExcel`
+3. emitir conciliacion base para registros fuente
+4. detectar incapacidad y otros calculables cerrados
+5. detectar montos en texto y contrastarlos con columnas
+6. marcar como no autorregistrable lo que solo viva en texto
 
 Version 2:
 
