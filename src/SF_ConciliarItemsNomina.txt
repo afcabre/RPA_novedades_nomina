@@ -1,0 +1,164 @@
+# SF_ConciliarItemsNomina
+# Concilia registros fuente de novedades nomina y resultados de analisis textual para dejar una salida operativa unica
+SET gEstadoConciliacionNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalConciliacionNovedadesNomina TO 0
+SET gHayConciliacionNovedadesNomina TO False
+SET gTotalConciliadosNomina TO 0
+SET gTotalDerivadosCalculablesNomina TO 0
+SET gTotalTextoSinRespaldoNomina TO 0
+SET gTotalConflictosNomina TO 0
+Variables.CreateNewList List=> gListaConciliacionNovedadesNomina
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoConciliacionNomina TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio conciliacion novedades nomina | Registros fuente: %gListaRegistrosFuenteNovedadesNomina.Count% | Novedades texto: %gListaNovedadesTextoAnalizadas.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaRegistrosFuenteNovedadesNomina.Count = 0 AND gListaNovedadesTextoAnalizadas.Count = 0 THEN
+        SET gEstadoConciliacionNomina TO $'''SIN_DATOS'''
+        SET gMensajeError TO $'''No hay registros fuente ni novedades texto analizadas para conciliar'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_DATOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    LOOP FOREACH CurrentItem IN gListaRegistrosFuenteNovedadesNomina
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesRegistroFuenteConciliacionActual
+        IF gPartesRegistroFuenteConciliacionActual.Count < 18 THEN
+            SET gEstadoConciliacionNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''Se recibio un registro fuente de novedades nomina con formato invalido'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        SET gArchivoOrigenConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[0]
+        SET gHojaOrigenConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[1]
+        SET gFilaExcelConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[3]
+        SET gCiudadConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[4]
+        SET gNombreEmpleadoConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[5]
+        SET gCedulaFuenteConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[6]
+        SET gAreaConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[7]
+        SET gSueldoBaseConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[8]
+        SET gAuxExtralegalConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[9]
+        SET gConceptoFuenteConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[10]
+        SET gColumnaOrigenConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[11]
+        SET gValorConceptoConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[12]
+        SET gNovedadTextoOriginalConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[13]
+        SET gNovedadAsociadaConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[14]
+        SET gMetodoAsociacionConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[15]
+        SET gConfianzaAsociacionConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[16]
+        SET gRequiereRevisionConciliacionRegistroActual TO gPartesRegistroFuenteConciliacionActual[17]
+        SET gLlaveFilaFuenteConciliacionRegistroActual TO $'''%gArchivoOrigenConciliacionRegistroActual%~%gHojaOrigenConciliacionRegistroActual%~%gFilaExcelConciliacionRegistroActual%'''
+        SET gResultadoConciliacionRegistroActual TO $'''%gIdEjecucion%|%gLlaveFilaFuenteConciliacionRegistroActual%|REGISTRO_FUENTE|%gArchivoOrigenConciliacionRegistroActual%|%gHojaOrigenConciliacionRegistroActual%|%gFilaExcelConciliacionRegistroActual%|%gCiudadConciliacionRegistroActual%|%gNombreEmpleadoConciliacionRegistroActual%|%gCedulaFuenteConciliacionRegistroActual%|%gAreaConciliacionRegistroActual%|%gSueldoBaseConciliacionRegistroActual%|%gAuxExtralegalConciliacionRegistroActual%|%gConceptoFuenteConciliacionRegistroActual%|%gColumnaOrigenConciliacionRegistroActual%|%gValorConceptoConciliacionRegistroActual%|%gNovedadTextoOriginalConciliacionRegistroActual%|%gNovedadAsociadaConciliacionRegistroActual%||||CONCILIADO|COLUMNA|True|False|REGLA|ALTA||Pendiente|||__END__'''
+        Variables.AddItemToList Item: gResultadoConciliacionRegistroActual List: gListaConciliacionNovedadesNomina
+        Variables.IncreaseVariable Value: gTotalConciliacionNovedadesNomina IncrementValue: 1
+        Variables.IncreaseVariable Value: gTotalConciliadosNomina IncrementValue: 1
+    END
+    LOOP FOREACH CurrentItem IN gListaNovedadesTextoAnalizadas
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesAnalisisConciliacionTextoActual
+        IF gPartesAnalisisConciliacionTextoActual.Count < 23 THEN
+            SET gEstadoConciliacionNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''Se recibio una novedad texto analizada con formato invalido'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        SET gArchivoOrigenConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[0]
+        SET gHojaOrigenConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[1]
+        SET gFilaExcelConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[3]
+        SET gCiudadConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[4]
+        SET gNombreEmpleadoConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[5]
+        SET gCedulaFuenteConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[6]
+        SET gAreaConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[7]
+        SET gSueldoBaseConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[8]
+        SET gAuxExtralegalConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[9]
+        SET gNovedadTextoOriginalConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[10]
+        SET gIndiceFragmentoConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[13]
+        SET gTextoFragmentoConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[14]
+        SET gTipoSugeridoConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[15]
+        SET gMontoMencionadoConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[16]
+        SET gDiasMencionadosConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[17]
+        SET gRequiereCalculoConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[18]
+        SET gTieneRespaldoEstructuralConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[19]
+        SET gConfianzaIAConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[20]
+        SET gRequiereRevisionIAConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[21]
+        SET gObservacionTecnicaConciliacionTextoActual TO gPartesAnalisisConciliacionTextoActual[22]
+        SET gLlaveFilaFuenteConciliacionTextoActual TO $'''%gArchivoOrigenConciliacionTextoActual%~%gHojaOrigenConciliacionTextoActual%~%gFilaExcelConciliacionTextoActual%'''
+        SET gExisteRegistroFuenteRelacionadoActual TO False
+        LOOP FOREACH CurrentRegistroFuenteConciliacion IN gListaRegistrosFuenteNovedadesNomina
+            Text.SplitText.SplitWithDelimiter Text: CurrentRegistroFuenteConciliacion CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesRegistroFuenteRelacionadoActual
+            IF gPartesRegistroFuenteRelacionadoActual.Count >= 18 THEN
+                SET gLlaveRegistroFuenteRelacionadoActual TO $'''%gPartesRegistroFuenteRelacionadoActual[0]%~%gPartesRegistroFuenteRelacionadoActual[1]%~%gPartesRegistroFuenteRelacionadoActual[3]%'''
+                IF gLlaveRegistroFuenteRelacionadoActual = gLlaveFilaFuenteConciliacionTextoActual THEN
+                    SET gExisteRegistroFuenteRelacionadoActual TO True
+                END
+            END
+        END
+        SET gConceptoFuenteConciliacionTextoActual TO $''''''
+        SET gColumnaOrigenConciliacionTextoActual TO $''''''
+        SET gValorConceptoConciliacionTextoActual TO $''''''
+        SET gOrigenAnalisisConciliacionTextoActual TO $'''NOVEDAD_TEXTO'''
+        SET gEstadoConciliacionTextoActual TO $'''TEXTO_SIN_RESPALDO'''
+        SET gFuenteAutoritativaConciliacionTextoActual TO $'''TEXTO'''
+        SET gPermiteAutoRegistroConciliacionTextoActual TO False
+        SET gMetodoConciliacionTextoActual TO $'''REGLA'''
+        SET gConfianzaConciliacionTextoActual TO $'''MEDIA'''
+        SET gMotivoRevisionConciliacionTextoActual TO gObservacionTecnicaConciliacionTextoActual
+        IF gExisteRegistroFuenteRelacionadoActual = True THEN
+            SET gFuenteAutoritativaConciliacionTextoActual TO $'''MIXTA'''
+            IF Not(IsEmpty(gMontoMencionadoConciliacionTextoActual)) THEN
+                SET gEstadoConciliacionTextoActual TO $'''CONFLICTO'''
+                SET gPermiteAutoRegistroConciliacionTextoActual TO False
+                SET gConfianzaConciliacionTextoActual TO $'''MEDIA'''
+                IF IsEmpty(gMotivoRevisionConciliacionTextoActual) THEN
+                    SET gMotivoRevisionConciliacionTextoActual TO $'''Texto con monto mencionado y registro fuente relacionado en la misma fila; requiere validacion manual'''
+                END
+                Variables.IncreaseVariable Value: gTotalConflictosNomina IncrementValue: 1
+            ELSE
+                SET gEstadoConciliacionTextoActual TO $'''TEXTO_SIN_RESPALDO'''
+                SET gPermiteAutoRegistroConciliacionTextoActual TO False
+                IF IsEmpty(gMotivoRevisionConciliacionTextoActual) THEN
+                    SET gMotivoRevisionConciliacionTextoActual TO $'''Texto adicional no respaldado por columna en una fila con registros fuente'''
+                END
+                Variables.IncreaseVariable Value: gTotalTextoSinRespaldoNomina IncrementValue: 1
+            END
+        ELSE
+            IF gRequiereCalculoConciliacionTextoActual = $'''True''' AND (gTipoSugeridoConciliacionTextoActual = $'''INCAPACIDAD''' OR gTipoSugeridoConciliacionTextoActual = $'''VACACIONES''' OR gTipoSugeridoConciliacionTextoActual = $'''LICENCIA''') THEN
+                SET gEstadoConciliacionTextoActual TO $'''DERIVADO_CALCULABLE'''
+                SET gFuenteAutoritativaConciliacionTextoActual TO $'''CALCULO'''
+                SET gPermiteAutoRegistroConciliacionTextoActual TO True
+                SET gConfianzaConciliacionTextoActual TO $'''ALTA'''
+                IF IsEmpty(gMotivoRevisionConciliacionTextoActual) THEN
+                    SET gMotivoRevisionConciliacionTextoActual TO $'''Evento calculable identificado desde texto; requiere materializar valor en fase posterior'''
+                END
+                Variables.IncreaseVariable Value: gTotalDerivadosCalculablesNomina IncrementValue: 1
+            ELSE
+                SET gEstadoConciliacionTextoActual TO $'''TEXTO_SIN_RESPALDO'''
+                SET gFuenteAutoritativaConciliacionTextoActual TO $'''TEXTO'''
+                SET gPermiteAutoRegistroConciliacionTextoActual TO False
+                SET gConfianzaConciliacionTextoActual TO $'''MEDIA'''
+                IF IsEmpty(gMotivoRevisionConciliacionTextoActual) THEN
+                    SET gMotivoRevisionConciliacionTextoActual TO $'''Texto sin respaldo estructural suficiente para autorregistro'''
+                END
+                Variables.IncreaseVariable Value: gTotalTextoSinRespaldoNomina IncrementValue: 1
+            END
+        END
+        SET gResultadoConciliacionTextoActual TO $'''%gIdEjecucion%|%gLlaveFilaFuenteConciliacionTextoActual%|%gOrigenAnalisisConciliacionTextoActual%|%gArchivoOrigenConciliacionTextoActual%|%gHojaOrigenConciliacionTextoActual%|%gFilaExcelConciliacionTextoActual%|%gCiudadConciliacionTextoActual%|%gNombreEmpleadoConciliacionTextoActual%|%gCedulaFuenteConciliacionTextoActual%|%gAreaConciliacionTextoActual%|%gSueldoBaseConciliacionTextoActual%|%gAuxExtralegalConciliacionTextoActual%|%gConceptoFuenteConciliacionTextoActual%|%gColumnaOrigenConciliacionTextoActual%|%gValorConceptoConciliacionTextoActual%|%gNovedadTextoOriginalConciliacionTextoActual%|%gTextoFragmentoConciliacionTextoActual%|%gTipoSugeridoConciliacionTextoActual%|%gMontoMencionadoConciliacionTextoActual%|%gDiasMencionadosConciliacionTextoActual%|%gEstadoConciliacionTextoActual%|%gFuenteAutoritativaConciliacionTextoActual%|%gPermiteAutoRegistroConciliacionTextoActual%|%gRequiereCalculoConciliacionTextoActual%|%gMetodoConciliacionTextoActual%|%gConfianzaConciliacionTextoActual%|%gMotivoRevisionConciliacionTextoActual%|Pendiente|||__END__'''
+        Variables.AddItemToList Item: gResultadoConciliacionTextoActual List: gListaConciliacionNovedadesNomina
+        Variables.IncreaseVariable Value: gTotalConciliacionNovedadesNomina IncrementValue: 1
+    END
+    IF gTotalConciliacionNovedadesNomina = 0 THEN
+        SET gEstadoConciliacionNomina TO $'''SIN_DATOS'''
+        SET gHayConciliacionNovedadesNomina TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Conciliacion novedades nomina finalizada sin resultados''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoConciliacionNomina TO $'''OK'''
+        SET gHayConciliacionNovedadesNomina TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen conciliacion novedades nomina | Total: %gTotalConciliacionNovedadesNomina% | Conciliados: %gTotalConciliadosNomina% | Derivados calculables: %gTotalDerivadosCalculablesNomina% | Texto sin respaldo: %gTotalTextoSinRespaldoNomina% | Conflictos: %gTotalConflictosNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

@@ -1,0 +1,175 @@
+# SF_EscribirConciliacionNovedadesNominaExcel
+# Escribe el resultado de gListaConciliacionNovedadesNomina en la hoja conciliacionNovedadesNomina del archivo de analisis de la corrida
+SET gEstadoEscrituraConciliacionNovedadesNominaExcel TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalFilasConciliacionNovedadesNominaEscritas TO 0
+SET gTotalFilasConciliacionNovedadesNominaConErrorFormato TO 0
+SET gHayFilasConciliacionNovedadesNominaEscritas TO False
+SET gExcelConciliacionNovedadesNominaAbierto TO False
+SET gNombreHojaConciliacionNovedadesNomina TO $'''conciliacionNovedadesNomina'''
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoEscrituraConciliacionNovedadesNominaExcel TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio escritura conciliacion novedades nomina Excel | Archivo: %gRutaArchivoAnalisisNovedades% | Registros: %gListaConciliacionNovedadesNomina.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaConciliacionNovedadesNomina.Count = 0 THEN
+        SET gEstadoEscrituraConciliacionNovedadesNominaExcel TO $'''SIN_DATOS'''
+        SET gMensajeError TO $'''No hay conciliacion de novedades nomina para escribir en Excel'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_DATOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF (File.IfFile.DoesNotExist File: gRutaArchivoAnalisisNovedades) THEN
+        SET gEstadoEscrituraConciliacionNovedadesNominaExcel TO $'''ERROR'''
+        SET gMensajeError TO $'''No existe el archivo Excel de analisis de novedades para escritura de conciliacion'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Ruta: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: gRutaArchivoAnalisisNovedades Visible: False ReadOnly: False Instance=> ExcelInstance
+    SET gExcelConciliacionNovedadesNominaAbierto TO True
+    SET gExisteHojaConciliacionNovedadesNomina TO False
+    SET gExisteSheet1ConciliacionNovedadesNomina TO False
+    Excel.GetAllWorksheets Instance: ExcelInstance Worksheets=> gHojasArchivoConciliacionNovedadesNomina
+    LOOP FOREACH CurrentSheetConciliacionNovedadesNomina IN gHojasArchivoConciliacionNovedadesNomina
+        IF CurrentSheetConciliacionNovedadesNomina = gNombreHojaConciliacionNovedadesNomina THEN
+            SET gExisteHojaConciliacionNovedadesNomina TO True
+        ELSE IF CurrentSheetConciliacionNovedadesNomina = $'''Sheet1''' THEN
+            SET gExisteSheet1ConciliacionNovedadesNomina TO True
+        END
+    END
+    IF gExisteHojaConciliacionNovedadesNomina = False THEN
+        IF gExisteSheet1ConciliacionNovedadesNomina = True THEN
+            Excel.CopyExcelWorksheet.CopyWorksheetWithName SourceInstance: ExcelInstance SourceWorksheetName: $'''Sheet1''' TargetInstance: ExcelInstance TargetWorksheetName: gNombreHojaConciliacionNovedadesNomina PasteWorksheetPosition: Excel.WorksheetPosition.First
+            File.WriteText File: gArchivoLog TextToWrite: $'''OK | Hoja %gNombreHojaConciliacionNovedadesNomina% creada a partir de Sheet1''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            SET gEstadoEscrituraConciliacionNovedadesNominaExcel TO $'''ERROR'''
+            SET gMensajeError TO $'''No existe la hoja conciliacionNovedadesNomina ni una hoja Sheet1 para reutilizar en el archivo de analisis'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+            SET gExcelConciliacionNovedadesNominaAbierto TO False
+            EXIT FUNCTION
+        END
+    END
+    Excel.SetActiveWorksheet.ActivateWorksheetByName Instance: ExcelInstance Name: gNombreHojaConciliacionNovedadesNomina
+    Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: 1 GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gCabeceraConciliacionNovedadesNominaA1
+    IF IsEmpty(gCabeceraConciliacionNovedadesNominaA1) THEN
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''IdEjecucion''' Column: $'''A''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''LlaveFilaFuente''' Column: $'''B''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''OrigenAnalisis''' Column: $'''C''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ArchivoOrigen''' Column: $'''D''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''HojaOrigen''' Column: $'''E''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''FilaExcel''' Column: $'''F''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''Ciudad''' Column: $'''G''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''NombreEmpleado''' Column: $'''H''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''CedulaFuente''' Column: $'''I''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''Area''' Column: $'''J''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''SueldoBaseTexto''' Column: $'''K''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''AuxExtralegalBaseTexto''' Column: $'''L''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ConceptoFuenteExcel''' Column: $'''M''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ColumnaOrigenExcel''' Column: $'''N''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ValorConceptoFuente''' Column: $'''O''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''NovedadTextoOriginal''' Column: $'''P''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''TextoFragmentoRelacionado''' Column: $'''Q''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''TipoSugeridoIA''' Column: $'''R''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''MontoMencionadoIA''' Column: $'''S''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''DiasMencionadosIA''' Column: $'''T''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''EstadoConciliacion''' Column: $'''U''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''FuenteAutoritativa''' Column: $'''V''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''PermiteAutoRegistro''' Column: $'''W''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''RequiereCalculo''' Column: $'''X''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''MetodoConciliacion''' Column: $'''Y''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ConfianzaConciliacion''' Column: $'''Z''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''MotivoRevision''' Column: $'''AA''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''EstadoRevisionUsuario''' Column: $'''AB''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''DecisionUsuario''' Column: $'''AC''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ObservacionUsuario''' Column: $'''AD''' Row: 1
+    END
+    SET gFilaEscrituraConciliacionNovedadesNominaActual TO 2
+    SET gBuscarFilaLibreConciliacionNovedadesNomina TO True
+    LOOP WHILE gBuscarFilaLibreConciliacionNovedadesNomina = True
+        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: gFilaEscrituraConciliacionNovedadesNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gValorControlFilaConciliacionNovedadesNomina
+        IF IsEmpty(gValorControlFilaConciliacionNovedadesNomina) THEN
+            SET gBuscarFilaLibreConciliacionNovedadesNomina TO False
+        ELSE
+            Variables.IncreaseVariable Value: gFilaEscrituraConciliacionNovedadesNominaActual IncrementValue: 1
+        END
+    END
+    LOOP FOREACH CurrentItem IN gListaConciliacionNovedadesNomina
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesConciliacionNovedadesNominaExcelActual
+        IF gPartesConciliacionNovedadesNominaExcelActual.Count < 29 THEN
+            Variables.IncreaseVariable Value: gTotalFilasConciliacionNovedadesNominaConErrorFormato IncrementValue: 1
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | Registro conciliacion novedades nomina con formato invalido | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            SET gMarcadorFinConciliacionExcelActual TO gPartesConciliacionNovedadesNominaExcelActual[gPartesConciliacionNovedadesNominaExcelActual.Count - 1]
+            IF gMarcadorFinConciliacionExcelActual <> $'''__END__''' THEN
+                Variables.IncreaseVariable Value: gTotalFilasConciliacionNovedadesNominaConErrorFormato IncrementValue: 1
+                File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | Registro conciliacion novedades nomina sin marcador final __END__ | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            ELSE
+                SET gEstadoRevisionUsuarioConciliacionExcelActual TO gPartesConciliacionNovedadesNominaExcelActual[27]
+                SET gDecisionUsuarioConciliacionExcelActual TO $''''''
+                SET gObservacionUsuarioConciliacionExcelActual TO $''''''
+                IF gPartesConciliacionNovedadesNominaExcelActual.Count > 29 THEN
+                    SET gDecisionUsuarioConciliacionExcelActual TO gPartesConciliacionNovedadesNominaExcelActual[28]
+                END
+                IF gPartesConciliacionNovedadesNominaExcelActual.Count > 30 THEN
+                    SET gObservacionUsuarioConciliacionExcelActual TO gPartesConciliacionNovedadesNominaExcelActual[29]
+                END
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[0] Column: $'''A''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[1] Column: $'''B''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[2] Column: $'''C''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[3] Column: $'''D''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[4] Column: $'''E''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[5] Column: $'''F''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[6] Column: $'''G''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[7] Column: $'''H''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[8] Column: $'''I''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[9] Column: $'''J''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[10] Column: $'''K''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[11] Column: $'''L''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[12] Column: $'''M''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[13] Column: $'''N''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[14] Column: $'''O''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[15] Column: $'''P''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[16] Column: $'''Q''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[17] Column: $'''R''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[18] Column: $'''S''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[19] Column: $'''T''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[20] Column: $'''U''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[21] Column: $'''V''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[22] Column: $'''W''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[23] Column: $'''X''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[24] Column: $'''Y''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[25] Column: $'''Z''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesConciliacionNovedadesNominaExcelActual[26] Column: $'''AA''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gEstadoRevisionUsuarioConciliacionExcelActual Column: $'''AB''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gDecisionUsuarioConciliacionExcelActual Column: $'''AC''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gObservacionUsuarioConciliacionExcelActual Column: $'''AD''' Row: gFilaEscrituraConciliacionNovedadesNominaActual
+            Variables.IncreaseVariable Value: gTotalFilasConciliacionNovedadesNominaEscritas IncrementValue: 1
+            Variables.IncreaseVariable Value: gFilaEscrituraConciliacionNovedadesNominaActual IncrementValue: 1
+            END
+        END
+    END
+    Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+    SET gExcelConciliacionNovedadesNominaAbierto TO False
+    IF gTotalFilasConciliacionNovedadesNominaEscritas = 0 THEN
+        SET gEstadoEscrituraConciliacionNovedadesNominaExcel TO $'''SIN_DATOS'''
+        SET gHayFilasConciliacionNovedadesNominaEscritas TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Escritura conciliacion novedades nomina Excel finalizada sin filas escritas''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoEscrituraConciliacionNovedadesNominaExcel TO $'''OK'''
+        SET gHayFilasConciliacionNovedadesNominaEscritas TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen escritura conciliacion novedades nomina Excel | Filas escritas: %gTotalFilasConciliacionNovedadesNominaEscritas% | Filas con error formato: %gTotalFilasConciliacionNovedadesNominaConErrorFormato% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    IF gExcelConciliacionNovedadesNominaAbierto = True THEN
+        Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+        SET gExcelConciliacionNovedadesNominaAbierto TO False
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

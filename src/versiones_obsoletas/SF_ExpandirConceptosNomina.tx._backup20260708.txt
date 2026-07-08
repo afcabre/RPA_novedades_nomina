@@ -173,8 +173,8 @@ $sueldoBaseTexto = $sueldoBaseTexto.Replace(\"`r\",\" \").Replace(\"`n\",\" \").
 $auxExtralegalBaseTexto = $auxExtralegalBaseTexto.Replace(\"`r\",\" \").Replace(\"`n\",\" \").Replace([char]160, \" \").Trim()
 
   $novedadNormalizada = $novedadTextoOriginal.ToLower()
-  $tieneRegistrosFuenteMaterializados = \"False\"
-  $motivoPendienteTexto = \"TEXTO_SIN_REGISTRO_FUENTE_MATERIALIZADO\"
+  $tieneConceptosExplicitos = \"False\"
+  $motivoPendienteTexto = \"TEXTO_SIN_CONCEPTO_MATERIALIZADO\"
 
   if (%gConceptosDetectadosRegistroActual% -gt 0) {
       [Console]::WriteLine(\"SIN_PENDIENTE\")
@@ -190,7 +190,7 @@ $auxExtralegalBaseTexto = $auxExtralegalBaseTexto.Replace(\"`r\",\" \").Replace(
       [Console]::WriteLine(\"SIN_PENDIENTE\")
   }
   else {
-      [Console]::WriteLine(\"$archivoOrigen|$hojaOrigen|$quincenaHoja|$filaExcel|$ciudad|$nombreEmpleado|$cedulaFuente|$area|$sueldoBaseTexto|$auxExtralegalBaseTexto|$novedadTextoOriginal|$tieneRegistrosFuenteMaterializados|$motivoPendienteTexto|True\")
+      [Console]::WriteLine(\"$archivoOrigen|$hojaOrigen|$quincenaHoja|$filaExcel|$ciudad|$nombreEmpleado|$cedulaFuente|$area|$sueldoBaseTexto|$auxExtralegalBaseTexto|$novedadTextoOriginal|$tieneConceptosExplicitos|$motivoPendienteTexto|True\")
   }''' ScriptOutput=> gResultadoPendienteTextoRegistroActual
         DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG pendiente texto raw | Fila: %CurrentItem% | Resultado: %gResultadoPendienteTextoRegistroActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         Text.SplitText.Split Text: gResultadoPendienteTextoRegistroActual StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gLineasPendienteTextoRegistroActual

@@ -1,3 +1,5 @@
+/# |------------------ Main -------------------|
+       Registro Novedades de Nómina#/
 CALL SF_Init
 IF gEstadoInicializacion = $'''OK''' THEN
     CALL SF_DescubrirArchivoEntrada
@@ -11,11 +13,22 @@ IF gEstadoInicializacion = $'''OK''' THEN
         IF gArchivoNominaValido = True THEN
             CALL SF_LeerNovedadesNominaHojasValidas
             IF gHayRegistrosNominaLeidos = True THEN
+                SET gHayNovedadesTextoAnalizadas TO False
+                SET gHayConciliacionNovedadesNomina TO False
                 CALL SF_ExpandirConceptosNomina
+                IF gHayRegistrosFuenteNovedadesNomina = True THEN
+                    CALL SF_EscribirRegistrosFuenteNovedadesNominaExcel
+                END
                 IF gHayNovedadesTextoPendientes = True THEN
                     CALL SF_AnalizarNovedadTextoNomina
                     IF gHayNovedadesTextoAnalizadas = True THEN
                         CALL SF_EscribirAnalisisNovedadesTextoExcel
+                    END
+                END
+                IF gHayRegistrosFuenteNovedadesNomina = True OR gHayNovedadesTextoAnalizadas = True THEN
+                    CALL SF_ConciliarItemsNomina
+                    IF gHayConciliacionNovedadesNomina = True THEN
+                        CALL SF_EscribirConciliacionNovedadesNominaExcel
                     END
                 END
             END
@@ -29,7 +42,7 @@ IF gEstadoInicializacion = $'''OK''' THEN
         GOTO CicloArchivosPendientes
     END
 ELSE
-    IF Not(IsEmpty(gArchivoLog)) THEN
+    IF NOT (IsEmpty(gArchivoLog)) THEN
         File.WriteText File: gArchivoLog TextToWrite: $'''Proceso detenido | SF_Init finalizo con estado: %gEstadoInicializacion% | Mensaje: %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     END
 END

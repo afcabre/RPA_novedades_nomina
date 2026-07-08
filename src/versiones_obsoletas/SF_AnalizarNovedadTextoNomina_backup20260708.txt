@@ -138,33 +138,26 @@ else {
         SET gSueldoBaseTextoActual TO gPartesPendienteTextoActual[8]
         SET gAuxExtralegalBaseTextoActual TO gPartesPendienteTextoActual[9]
         SET gNovedadTextoOriginalActual TO gPartesPendienteTextoActual[10]
-        SET gTieneRegistrosFuenteMaterializadosActual TO gPartesPendienteTextoActual[11]
+        SET gTieneConceptosExplicitosActual TO gPartesPendienteTextoActual[11]
         SET gMotivoPendienteTextoActual TO gPartesPendienteTextoActual[12]
         SET gRequiereRevisionEntradaActual TO gPartesPendienteTextoActual[13]
         IF IsEmpty(gNovedadTextoOriginalActual) THEN
             Variables.IncreaseVariable Value: gTotalFilasTextoSinSalida IncrementValue: 1
         ELSE
             SET gSystemPromptIA TO $'''Eres un analizador de novedades textuales de nomina. Responde exclusivamente un JSON valido. No uses markdown. Devuelve un objeto con la llave fragments. Cada elemento de fragments debe incluir exactamente estas llaves: indiceFragmento, textoFragmento, tipoSugeridoIA, montoMencionado, diasMencionados, requiereCalculo, tieneRespaldoEstructuralSugerido, confianzaIA, requiereRevision, observacionTecnica. Reglas: tipoSugeridoIA solo puede ser uno de INCAPACIDAD, VACACIONES, LICENCIA, COMISION, BONO, DEDUCCION, OBSERVACION_GENERAL, NO_CLASIFICADO. montoMencionado debe ser texto vacio si no hay monto explicito. diasMencionados debe ser texto vacio si no hay dias explicitos. requiereCalculo debe ser true solo si el texto describe un evento calculable y no trae un valor final materializado. tieneRespaldoEstructuralSugerido debe ser true solo si el texto sugiere respaldo estructural claro; si hay duda deja false. confianzaIA solo puede ser ALTA, MEDIA o BAJA. requiereRevision debe ser true si existe cualquier ambiguedad. No inventes conceptos del sistema ni codigos. Si el texto contiene varias novedades, separalas en varios fragmentos.'''
-            SET gUserPromptIA TO $'''Archivo origen: %gArchivoOrigenActual% | Hoja origen: %gHojaOrigenActual% | Quincena hoja: %gQuincenaHojaActual% | Fila Excel: %gFilaExcelActual% | Ciudad: %gCiudadActual% | Nombre empleado: %gNombreEmpleadoActual% | Cedula fuente: %gCedulaFuenteActual% | Area: %gAreaActual% | Sueldo base texto: %gSueldoBaseTextoActual% | Aux extralegal base texto: %gAuxExtralegalBaseTextoActual% | Novedad texto original: %gNovedadTextoOriginalActual% | Tiene registros fuente materializados: %gTieneRegistrosFuenteMaterializadosActual% | Motivo pendiente texto: %gMotivoPendienteTextoActual%'''
-            DISABLE SET gUserPromptIA TO $'''Archivo origen: %gArchivoOrigenActual%
-  Hoja origen: %gHojaOrigenActual%
-  Quincena hoja: %gQuincenaHojaActual%
-  Fila Excel: %gFilaExcelActual%
-  Ciudad: %gCiudadActual%
-  Nombre empleado: %gNombreEmpleadoActual%
-  Cedula fuente: %gCedulaFuenteActual%
-  Area: %gAreaActual%
-  Sueldo base texto: %gSueldoBaseTextoActual%
-  Aux extralegal base texto: %gAuxExtralegalBaseTextoActual%
-  Novedad texto original: %gNovedadTextoOriginalActual%
-  Tiene registros fuente materializados: %gTieneRegistrosFuenteMaterializadosActual%
-  Motivo pendiente texto: %gMotivoPendienteTextoActual%'''
+            DISABLE SET gSystemPromptIA TO $'''Eres un analizador de novedades textuales de nomina. Responde exclusivamente un JSON valido. No uses markdown. Devuelve un objeto con la llave fragments. Cada elemento de fragments
+  debe incluir exactamente estas llaves: indiceFragmento, textoFragmento, tipoSugeridoIA, montoMencionado, diasMencionados, requiereCalculo, tieneRespaldoEstructuralSugerido, confianzaIA, requiereRevision,
+  observacionTecnica. Reglas: tipoSugeridoIA solo puede ser uno de INCAPACIDAD, VACACIONES, LICENCIA, COMISION, BONO, DEDUCCION, OBSERVACION_GENERAL, NO_CLASIFICADO. montoMencionado debe ser texto vacio si no
+  hay monto explicito. diasMencionados debe ser texto vacio si no hay dias explicitos. requiereCalculo debe ser true solo si el texto describe un evento calculable y no trae un valor final materializado.
+  tieneRespaldoEstructuralSugerido debe ser true solo si el texto sugiere respaldo estructural claro; si hay duda deja false. confianzaIA solo puede ser ALTA, MEDIA o BAJA. requiereRevision debe ser true si
+  existe cualquier ambiguedad. No inventes conceptos del sistema ni codigos. Si el texto contiene varias novedades, separalas en varios fragmentos.'''
+            SET gUserPromptIA TO $'''Archivo origen: %gArchivoOrigenActual% | Hoja origen: %gHojaOrigenActual% | Quincena hoja: %gQuincenaHojaActual% | Fila Excel: %gFilaExcelActual% | Ciudad: %gCiudadActual% | Nombre empleado: %gNombreEmpleadoActual% | Cedula fuente: %gCedulaFuenteActual% | Area: %gAreaActual% | Sueldo base texto: %gSueldoBaseTextoActual% | Aux extralegal base texto: %gAuxExtralegalBaseTextoActual% | Novedad texto original: %gNovedadTextoOriginalActual% | Tiene conceptos explicitos: %gTieneConceptosExplicitosActual% | Motivo pendiente texto: %gMotivoPendienteTextoActual%'''
             SET gRequestBodyIA TO $'''{\"model\":\"%pModeloIA%\",\"response_format\":{\"type\":\"json_object\"},\"temperature\":0,\"max_tokens\":700,\"messages\":[{\"role\":\"system\",\"content\":\"%gSystemPromptIA%\"}, {\"role\":\"user\",\"content\":\"%gUserPromptIA%\"}]}'''
-            DISABLE SET gRequestBodyIA TO $'''{\"model\":\"%pModeloIA%\",\"response_format\":{\"type\":\"json_object\"},\"temperature\":0,\"max_tokens\":700,\"messages\":[{\"role\":\"system\",\"content\":\"%gSystemPromptIA%\"},
-  {\"role\":\"user\",\"content\":\"%gUserPromptIA%\"}]}'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG IA REQUEST | Endpoint: %pEndpointIA% | Model: %pModeloIA% | Body: %gRequestBodyIA%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
             Web.InvokeWebService.InvokeWebService Url: pEndpointIA Method: Web.Method.Post Accept: $'''application/json''' ContentType: $'''application/json''' ConnectionTimeout: pTimeoutIAsegundos FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: False UserAgent: $'''Mozilla/5.0 (Windows NT 10.0; Win64; x64)''' Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True RequestBody: gRequestBodyIA CustomHeaders: $'''Authorization: Bearer %gApiKeyIA%''' ResponseHeaders=> gWebServiceResponseHeaders Response=> gWebServiceResponse StatusCode=> gStatusCodeIA
             IF gStatusCodeIA < 200 OR gStatusCodeIA > 299 THEN
-                SET gResultadoFallbackActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneRegistrosFuenteMaterializadosActual%|%gMotivoPendienteTextoActual%|1|%gNovedadTextoOriginalActual%|NO_CLASIFICADO|||False|False|NO_EJECUTADA|True|HTTP %gStatusCodeIA%'''
+                File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG IA HTTP ERROR | Status: %gStatusCodeIA% | Endpoint: %pEndpointIA% | Body: %gWebServiceResponse%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                SET gResultadoFallbackActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneConceptosExplicitosActual%|%gMotivoPendienteTextoActual%|1|%gNovedadTextoOriginalActual%|NO_CLASIFICADO|||False|False|NO_EJECUTADA|True|HTTP %gStatusCodeIA%'''
                 Variables.AddItemToList Item: gResultadoFallbackActual List: gListaNovedadesTextoAnalizadas
                 Variables.IncreaseVariable Value: gTotalNovedadesTextoAnalizadas IncrementValue: 1
                 SET gSeGeneroSalidaAnalisisActual TO True
@@ -172,7 +165,7 @@ else {
                 Variables.ConvertJsonToCustomObject Json: gWebServiceResponse CustomObject=> gResponseJsonIA
                 SET gMessageContentIA TO gResponseJsonIA['choices'][0]['message']['content']
                 IF IsEmpty(gMessageContentIA) THEN
-                    SET gResultadoFallbackActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneRegistrosFuenteMaterializadosActual%|%gMotivoPendienteTextoActual%|1|%gNovedadTextoOriginalActual%|NO_CLASIFICADO|||False|False|NO_EJECUTADA|True|Respuesta vacia de Mistral'''
+                    SET gResultadoFallbackActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneConceptosExplicitosActual%|%gMotivoPendienteTextoActual%|1|%gNovedadTextoOriginalActual%|NO_CLASIFICADO|||False|False|NO_EJECUTADA|True|Respuesta vacia de Mistral'''
                     Variables.AddItemToList Item: gResultadoFallbackActual List: gListaNovedadesTextoAnalizadas
                     Variables.IncreaseVariable Value: gTotalNovedadesTextoAnalizadas IncrementValue: 1
                     SET gSeGeneroSalidaAnalisisActual TO True
@@ -211,13 +204,13 @@ else {
                             SET gRequiereRevisionActual TO True
                         END
                         SET gObservacionTecnicaActual TO CurrentFragment['observacionTecnica']
-                        SET gResultadoAnalisisLineaActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneRegistrosFuenteMaterializadosActual%|%gMotivoPendienteTextoActual%|%gIndiceFragmentoActual%|%gTextoFragmentoActual%|%gTipoSugeridoIAActual%|%gMontoMencionadoActual%|%gDiasMencionadosActual%|%gRequiereCalculoActual%|%gTieneRespaldoEstructuralActual%|%gConfianzaIAActual%|%gRequiereRevisionActual%|%gObservacionTecnicaActual%'''
+                        SET gResultadoAnalisisLineaActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneConceptosExplicitosActual%|%gMotivoPendienteTextoActual%|%gIndiceFragmentoActual%|%gTextoFragmentoActual%|%gTipoSugeridoIAActual%|%gMontoMencionadoActual%|%gDiasMencionadosActual%|%gRequiereCalculoActual%|%gTieneRespaldoEstructuralActual%|%gConfianzaIAActual%|%gRequiereRevisionActual%|%gObservacionTecnicaActual%'''
                         Variables.AddItemToList Item: gResultadoAnalisisLineaActual List: gListaNovedadesTextoAnalizadas
                         Variables.IncreaseVariable Value: gTotalNovedadesTextoAnalizadas IncrementValue: 1
                         SET gSeGeneroSalidaAnalisisActual TO True
                     END
                     IF gSeGeneroSalidaAnalisisActual = False THEN
-                        SET gResultadoFallbackActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneRegistrosFuenteMaterializadosActual%|%gMotivoPendienteTextoActual%|1|%gNovedadTextoOriginalActual%|NO_CLASIFICADO|||False|False|NO_EJECUTADA|True|Respuesta sin fragments utiles'''
+                        SET gResultadoFallbackActual TO $'''%gArchivoOrigenActual%|%gHojaOrigenActual%|%gQuincenaHojaActual%|%gFilaExcelActual%|%gCiudadActual%|%gNombreEmpleadoActual%|%gCedulaFuenteActual%|%gAreaActual%|%gSueldoBaseTextoActual%|%gAuxExtralegalBaseTextoActual%|%gNovedadTextoOriginalActual%|%gTieneConceptosExplicitosActual%|%gMotivoPendienteTextoActual%|1|%gNovedadTextoOriginalActual%|NO_CLASIFICADO|||False|False|NO_EJECUTADA|True|Respuesta sin fragments utiles'''
                         Variables.AddItemToList Item: gResultadoFallbackActual List: gListaNovedadesTextoAnalizadas
                         Variables.IncreaseVariable Value: gTotalNovedadesTextoAnalizadas IncrementValue: 1
                         SET gSeGeneroSalidaAnalisisActual TO True
