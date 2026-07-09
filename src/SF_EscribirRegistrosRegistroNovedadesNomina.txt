@@ -1,0 +1,136 @@
+# SF_EscribirRegistrosRegistroNovedadesNomina
+# Escribe la salida operativa de gListaRegistrosRegistroNovedadesNomina en la hoja registroNovedadesNomina del archivo de analisis
+SET gEstadoEscrituraRegistrosRegistroNovedadesNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalFilasRegistrosRegistroNovedadesNominaEscritas TO 0
+SET gTotalFilasRegistrosRegistroNovedadesNominaConErrorFormato TO 0
+SET gHayFilasRegistrosRegistroNovedadesNominaEscritas TO False
+SET gExcelRegistrosRegistroNovedadesNominaAbierto TO False
+SET gNombreHojaRegistrosRegistroNovedadesNomina TO $'''registroNovedadesNomina'''
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoEscrituraRegistrosRegistroNovedadesNomina TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio escritura registros registro novedades nomina | Archivo: %gRutaArchivoAnalisisNovedades% | Registros: %gListaRegistrosRegistroNovedadesNomina.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaRegistrosRegistroNovedadesNomina.Count = 0 THEN
+        SET gEstadoEscrituraRegistrosRegistroNovedadesNomina TO $'''SIN_DATOS'''
+        SET gMensajeError TO $'''No hay registros operativos de novedades nomina para escribir en Excel'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_DATOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF (File.IfFile.DoesNotExist File: gRutaArchivoAnalisisNovedades) THEN
+        SET gEstadoEscrituraRegistrosRegistroNovedadesNomina TO $'''ERROR'''
+        SET gMensajeError TO $'''No existe el archivo Excel de analisis de novedades para escritura de registros operativos'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Ruta: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: gRutaArchivoAnalisisNovedades Visible: False ReadOnly: False Instance=> ExcelInstance
+    SET gExcelRegistrosRegistroNovedadesNominaAbierto TO True
+    SET gExisteHojaRegistrosRegistroNovedadesNomina TO False
+    SET gExisteSheet1RegistrosRegistroNovedadesNomina TO False
+    Excel.GetAllWorksheets Instance: ExcelInstance Worksheets=> gHojasArchivoRegistrosRegistroNovedadesNomina
+    LOOP FOREACH CurrentSheetRegistrosRegistroNovedadesNomina IN gHojasArchivoRegistrosRegistroNovedadesNomina
+        IF CurrentSheetRegistrosRegistroNovedadesNomina = gNombreHojaRegistrosRegistroNovedadesNomina THEN
+            SET gExisteHojaRegistrosRegistroNovedadesNomina TO True
+        ELSE IF CurrentSheetRegistrosRegistroNovedadesNomina = $'''Sheet1''' THEN
+            SET gExisteSheet1RegistrosRegistroNovedadesNomina TO True
+        END
+    END
+    IF gExisteHojaRegistrosRegistroNovedadesNomina = False THEN
+        IF gExisteSheet1RegistrosRegistroNovedadesNomina = True THEN
+            Excel.CopyExcelWorksheet.CopyWorksheetWithName SourceInstance: ExcelInstance SourceWorksheetName: $'''Sheet1''' TargetInstance: ExcelInstance TargetWorksheetName: gNombreHojaRegistrosRegistroNovedadesNomina PasteWorksheetPosition: Excel.WorksheetPosition.First
+            File.WriteText File: gArchivoLog TextToWrite: $'''OK | Hoja %gNombreHojaRegistrosRegistroNovedadesNomina% creada a partir de Sheet1''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            SET gEstadoEscrituraRegistrosRegistroNovedadesNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''No existe la hoja registroNovedadesNomina ni una hoja Sheet1 para reutilizar en el archivo de analisis'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+            SET gExcelRegistrosRegistroNovedadesNominaAbierto TO False
+            EXIT FUNCTION
+        END
+    END
+    Excel.SetActiveWorksheet.ActivateWorksheetByName Instance: ExcelInstance Name: gNombreHojaRegistrosRegistroNovedadesNomina
+    Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: 1 GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gCabeceraRegistrosRegistroNovedadesNominaA1
+    IF IsEmpty(gCabeceraRegistrosRegistroNovedadesNominaA1) THEN
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''IdEjecucion''' Column: $'''A''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ArchivoOrigen''' Column: $'''B''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''HojaOrigen''' Column: $'''C''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''FilaExcel''' Column: $'''D''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''NombreTercero''' Column: $'''E''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''IdTercero''' Column: $'''F''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''Concepto''' Column: $'''G''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''IdConcepto''' Column: $'''H''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''Valor''' Column: $'''I''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''Dias''' Column: $'''J''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''Observaciones''' Column: $'''K''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''OrigenResolucionConcepto''' Column: $'''L''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''EstadoPreparacionRegistro''' Column: $'''M''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''RequiereValidacionUsuario''' Column: $'''N''' Row: 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''MotivoValidacion''' Column: $'''O''' Row: 1
+    END
+    SET gFilaEscrituraRegistrosRegistroNovedadesNominaActual TO 2
+    SET gBuscarFilaLibreRegistrosRegistroNovedadesNomina TO True
+    LOOP WHILE gBuscarFilaLibreRegistrosRegistroNovedadesNomina = True
+        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: gFilaEscrituraRegistrosRegistroNovedadesNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gValorControlFilaRegistrosRegistroNovedadesNomina
+        IF IsEmpty(gValorControlFilaRegistrosRegistroNovedadesNomina) THEN
+            SET gBuscarFilaLibreRegistrosRegistroNovedadesNomina TO False
+        ELSE
+            Variables.IncreaseVariable Value: gFilaEscrituraRegistrosRegistroNovedadesNominaActual IncrementValue: 1
+        END
+    END
+    LOOP FOREACH CurrentItem IN gListaRegistrosRegistroNovedadesNomina
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesRegistrosRegistroNovedadesNominaExcelActual
+        IF gPartesRegistrosRegistroNovedadesNominaExcelActual.Count < 16 THEN
+            Variables.IncreaseVariable Value: gTotalFilasRegistrosRegistroNovedadesNominaConErrorFormato IncrementValue: 1
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | Registro operativо novedades nomina con formato invalido | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            SET gMarcadorFinRegistrosRegistroNovedadesNominaExcelActual TO gPartesRegistrosRegistroNovedadesNominaExcelActual[gPartesRegistrosRegistroNovedadesNominaExcelActual.Count - 1]
+            IF gMarcadorFinRegistrosRegistroNovedadesNominaExcelActual <> $'''__END__''' THEN
+                Variables.IncreaseVariable Value: gTotalFilasRegistrosRegistroNovedadesNominaConErrorFormato IncrementValue: 1
+                File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | Registro operativo novedades nomina sin marcador final __END__ | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            ELSE
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[0] Column: $'''A''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[1] Column: $'''B''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[2] Column: $'''C''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[3] Column: $'''D''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[4] Column: $'''E''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[5] Column: $'''F''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[6] Column: $'''G''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[7] Column: $'''H''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[8] Column: $'''I''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[9] Column: $'''J''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[10] Column: $'''K''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[11] Column: $'''L''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[12] Column: $'''M''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[13] Column: $'''N''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gPartesRegistrosRegistroNovedadesNominaExcelActual[14] Column: $'''O''' Row: gFilaEscrituraRegistrosRegistroNovedadesNominaActual
+                Variables.IncreaseVariable Value: gTotalFilasRegistrosRegistroNovedadesNominaEscritas IncrementValue: 1
+                Variables.IncreaseVariable Value: gFilaEscrituraRegistrosRegistroNovedadesNominaActual IncrementValue: 1
+            END
+        END
+    END
+    Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+    SET gExcelRegistrosRegistroNovedadesNominaAbierto TO False
+    IF gTotalFilasRegistrosRegistroNovedadesNominaEscritas = 0 THEN
+        SET gEstadoEscrituraRegistrosRegistroNovedadesNomina TO $'''SIN_DATOS'''
+        SET gHayFilasRegistrosRegistroNovedadesNominaEscritas TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Escritura registros registro novedades nomina finalizada sin filas escritas''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoEscrituraRegistrosRegistroNovedadesNomina TO $'''OK'''
+        SET gHayFilasRegistrosRegistroNovedadesNominaEscritas TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen escritura registros registro novedades nomina | Filas escritas: %gTotalFilasRegistrosRegistroNovedadesNominaEscritas% | Filas con error formato: %gTotalFilasRegistrosRegistroNovedadesNominaConErrorFormato% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    IF gExcelRegistrosRegistroNovedadesNominaAbierto = True THEN
+        Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+        SET gExcelRegistrosRegistroNovedadesNominaAbierto TO False
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

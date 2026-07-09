@@ -24,9 +24,7 @@ Inicio materializacion registros calculables novedades nomina | Registros concil
         EXIT FUNCTION
     END
     LOOP FOREACH CurrentItem IN gListaConciliacionNovedadesNomina
-        Scripting.RunPowershellScript.RunScript Script: $'''$registro = @"
-%CurrentItem%
-"@
+        Scripting.RunPowershellScript.RunScript Script: $'''$registro = "%CurrentItem%"
 
 function Normalizar-Numero([string]$valor) {
     if ($null -eq $valor) {

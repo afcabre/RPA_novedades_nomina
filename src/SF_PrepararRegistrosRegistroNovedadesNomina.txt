@@ -1,0 +1,90 @@
+# SF_PrepararRegistrosRegistroNovedadesNomina
+# Construye una salida operativa limpia para la etapa de registro en sistema a partir de la clasificacion final
+SET gEstadoPreparacionRegistrosRegistroNovedadesNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalRegistrosRegistroNovedadesNomina TO 0
+SET gHayRegistrosRegistroNovedadesNomina TO False
+SET gTotalRegistrosAutorregistroPreparadosNovedadesNomina TO 0
+SET gTotalRegistrosValidacionPreparadosNovedadesNomina TO 0
+Variables.CreateNewList List=> gListaRegistrosRegistroNovedadesNomina
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoPreparacionRegistrosRegistroNovedadesNomina TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio preparacion registros registro novedades nomina | Registros clasificados: %gListaClasificacionRegistrosListosNovedadesNomina.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaClasificacionRegistrosListosNovedadesNomina.Count = 0 THEN
+        SET gEstadoPreparacionRegistrosRegistroNovedadesNomina TO $'''SIN_DATOS'''
+        SET gMensajeError TO $'''No hay registros clasificados de novedades nomina para preparar salida operativa'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_DATOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    LOOP FOREACH CurrentItem IN gListaClasificacionRegistrosListosNovedadesNomina
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesPreparacionRegistroNovedadesNominaActual
+        IF gPartesPreparacionRegistroNovedadesNominaActual.Count < 39 THEN
+            SET gEstadoPreparacionRegistrosRegistroNovedadesNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''Se recibio un registro clasificado con formato invalido para preparacion operativa'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        SET gMarcadorFinPreparacionRegistroNovedadesNominaActual TO gPartesPreparacionRegistroNovedadesNominaActual[gPartesPreparacionRegistroNovedadesNominaActual.Count - 1]
+        IF gMarcadorFinPreparacionRegistroNovedadesNominaActual <> $'''__END__''' THEN
+            SET gEstadoPreparacionRegistrosRegistroNovedadesNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''Se recibio un registro clasificado sin marcador final __END__ para preparacion operativa'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        SET gIdEjecucionPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[0]
+        SET gArchivoOrigenPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[3]
+        SET gHojaOrigenPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[4]
+        SET gFilaExcelPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[5]
+        SET gNombreTerceroPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[7]
+        SET gIdTerceroPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[8]
+        SET gValorPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[14]
+        SET gNovedadTextoOriginalPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[15]
+        SET gTextoFragmentoRelacionadoPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[16]
+        SET gDiasPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[19]
+        SET gEstadoResolucionCatalogoFinalPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[28]
+        SET gIdConceptoPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[30]
+        SET gConceptoPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[31]
+        SET gRequiereValidacionUsuarioPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[34]
+        SET gEstadoPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[36]
+        SET gMotivoValidacionPreparacionRegistroActual TO gPartesPreparacionRegistroNovedadesNominaActual[37]
+        SET gObservacionesPreparacionRegistroActual TO gTextoFragmentoRelacionadoPreparacionRegistroActual
+        SET gOrigenResolucionConceptoPreparacionRegistroActual TO $'''REGLA'''
+        IF IsEmpty(gObservacionesPreparacionRegistroActual) THEN
+            SET gObservacionesPreparacionRegistroActual TO gNovedadTextoOriginalPreparacionRegistroActual
+        END
+        IF gEstadoResolucionCatalogoFinalPreparacionRegistroActual = $'''SUGERIDO_IA''' THEN
+            SET gOrigenResolucionConceptoPreparacionRegistroActual TO $'''IA'''
+        END
+        IF gEstadoPreparacionRegistroActual = $'''REQUIERE_VALIDACION_USUARIO''' THEN
+            SET gRequiereValidacionUsuarioPreparacionRegistroActual TO $'''True'''
+            Variables.IncreaseVariable Value: gTotalRegistrosValidacionPreparadosNovedadesNomina IncrementValue: 1
+        ELSE
+            SET gRequiereValidacionUsuarioPreparacionRegistroActual TO $'''False'''
+            SET gMotivoValidacionPreparacionRegistroActual TO $''''''
+            Variables.IncreaseVariable Value: gTotalRegistrosAutorregistroPreparadosNovedadesNomina IncrementValue: 1
+        END
+        SET gResultadoPreparacionRegistroNovedadesNominaActual TO $'''%gIdEjecucionPreparacionRegistroActual%|%gArchivoOrigenPreparacionRegistroActual%|%gHojaOrigenPreparacionRegistroActual%|%gFilaExcelPreparacionRegistroActual%|%gNombreTerceroPreparacionRegistroActual%|%gIdTerceroPreparacionRegistroActual%|%gConceptoPreparacionRegistroActual%|%gIdConceptoPreparacionRegistroActual%|%gValorPreparacionRegistroActual%|%gDiasPreparacionRegistroActual%|%gObservacionesPreparacionRegistroActual%|%gOrigenResolucionConceptoPreparacionRegistroActual%|%gEstadoPreparacionRegistroActual%|%gRequiereValidacionUsuarioPreparacionRegistroActual%|%gMotivoValidacionPreparacionRegistroActual%|__END__'''
+        Variables.AddItemToList Item: gResultadoPreparacionRegistroNovedadesNominaActual List: gListaRegistrosRegistroNovedadesNomina
+        Variables.IncreaseVariable Value: gTotalRegistrosRegistroNovedadesNomina IncrementValue: 1
+    END
+    IF gTotalRegistrosRegistroNovedadesNomina = 0 THEN
+        SET gEstadoPreparacionRegistrosRegistroNovedadesNomina TO $'''SIN_DATOS'''
+        SET gHayRegistrosRegistroNovedadesNomina TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Preparacion registros registro novedades nomina finalizada sin resultados''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoPreparacionRegistrosRegistroNovedadesNomina TO $'''OK'''
+        SET gHayRegistrosRegistroNovedadesNomina TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen preparacion registros registro novedades nomina | Total: %gTotalRegistrosRegistroNovedadesNomina% | Autorregistro: %gTotalRegistrosAutorregistroPreparadosNovedadesNomina% | Validacion usuario: %gTotalRegistrosValidacionPreparadosNovedadesNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END
