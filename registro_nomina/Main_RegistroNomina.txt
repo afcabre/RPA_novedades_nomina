@@ -1,0 +1,18 @@
+/# |------------- Main Registro Nomina -------------|
+       Registro de novedades en aplicativo web desde archivo de analisis#/
+CALL SF_InitRegistroNomina
+IF gEstadoInicializacionRegistroNomina = $'''OK''' THEN
+    CALL SF_PrepararContextoRegistroNomina
+    IF gEstadoContextoRegistroNomina = $'''OK''' THEN
+        LABEL CicloRegistrosPendientesNomina
+        CALL SF_TomarSiguienteRegistroPendienteNomina
+        IF gHayRegistroPendienteNomina = False THEN
+            File.WriteText File: gArchivoLog TextToWrite: $'''No hay mas registros pendientes para registrar en nomina''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            CALL SF_RegistrarRegistroNomina
+            CALL SF_ConfirmarResultadoRegistroNomina
+            CALL SF_ActualizarResultadoRegistroExcel
+            GOTO CicloRegistrosPendientesNomina
+        END
+    END
+END

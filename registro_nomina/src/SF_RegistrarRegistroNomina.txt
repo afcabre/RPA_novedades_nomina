@@ -1,0 +1,3 @@
+# SF_RegistrarRegistroNomina
+# Placeholder para registrar el concepto del item actual en el sistema
+# usando la informacion del registro operativo ya preparado

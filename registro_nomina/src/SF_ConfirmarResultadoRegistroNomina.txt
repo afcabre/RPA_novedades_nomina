@@ -1,0 +1,2 @@
+# SF_ConfirmarResultadoRegistroNomina
+# Placeholder para confirmacion del resultado visible del registro en el sistema

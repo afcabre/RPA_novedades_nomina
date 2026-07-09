@@ -1,0 +1,2 @@
+# SF_ActualizarResultadoRegistroExcel
+# Placeholder para persistencia del resultado de registro en el archivo de analisis

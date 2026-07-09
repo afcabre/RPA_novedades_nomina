@@ -1,0 +1,3 @@
+# SF_PrepararContextoRegistroNomina
+# Placeholder para abrir navegador, autenticar usuario, seleccionar empresa
+# y dejar abierta la pantalla de registro de novedades

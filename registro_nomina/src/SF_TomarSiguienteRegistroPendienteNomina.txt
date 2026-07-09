@@ -1,0 +1,2 @@
+# SF_TomarSiguienteRegistroPendienteNomina
+# Placeholder para seleccion del siguiente registro pendiente desde la hoja registroNovedadesNomina

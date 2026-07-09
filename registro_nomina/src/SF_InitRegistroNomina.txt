@@ -1,0 +1,2 @@
+# SF_InitRegistroNomina
+# Placeholder inicial del pipeline de registro UI de nomina
