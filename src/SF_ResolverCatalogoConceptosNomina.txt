@@ -1,0 +1,267 @@
+# SF_ResolverCatalogoConceptosNomina
+# Resuelve cada fila conciliada de novedades nomina contra el catalogo JSON de conceptos por empresa
+SET gEstadoResolucionCatalogoNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalResolucionCatalogoNovedadesNomina TO 0
+SET gHayResolucionCatalogoNovedadesNomina TO False
+SET gTotalCatalogoResueltos TO 0
+SET gTotalCatalogoAmbiguos TO 0
+SET gTotalCatalogoNoEncontrados TO 0
+SET gTotalFilasCatalogoSinBase TO 0
+SET gTotalBaseConceptoFuenteNomina TO 0
+SET gTotalBaseTipoEventoNomina TO 0
+SET gTotalBaseTextoNovedadNomina TO 0
+SET gTotalBaseMixtaNomina TO 0
+SET gRutaCatalogoConceptosNomina TO $'''C:\\Dev\\Aspraco\\config\\catalogo_conceptos_nomina.json'''
+Variables.CreateNewList List=> gListaResolucionCatalogoNovedadesNomina
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoResolucionCatalogoNomina TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio resolucion catalogo conceptos nomina | Registros conciliados: %gListaConciliacionNovedadesNomina.Count% | Catalogo: %gRutaCatalogoConceptosNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaConciliacionNovedadesNomina.Count = 0 THEN
+        SET gEstadoResolucionCatalogoNomina TO $'''SIN_DATOS'''
+        SET gMensajeError TO $'''No hay registros conciliados de novedades nomina para resolver contra catalogo'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_DATOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF (File.IfFile.DoesNotExist File: gRutaCatalogoConceptosNomina) THEN
+        SET gEstadoResolucionCatalogoNomina TO $'''ERROR'''
+        SET gMensajeError TO $'''No existe el archivo catalogo_conceptos_nomina.json'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Ruta: %gRutaCatalogoConceptosNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    File.ReadTextFromFile.ReadText File: gRutaCatalogoConceptosNomina Encoding: File.TextFileEncoding.UTF8 Content=> gCatalogoConceptosNominaTexto
+    Variables.ConvertJsonToCustomObject Json: gCatalogoConceptosNominaTexto CustomObject=> gCatalogoConceptosNominaJson
+    SET gListaCatalogosNomina TO gCatalogoConceptosNominaJson['catalogosNomina']
+    IF gListaCatalogosNomina.Count = 0 THEN
+        SET gEstadoResolucionCatalogoNomina TO $'''ERROR'''
+        SET gMensajeError TO $'''El archivo catalogo_conceptos_nomina.json no contiene empresas configuradas'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    SET gEmpresaCatalogoEncontrada TO False
+    SET gTotalEmpresasCatalogoActivas TO 0
+    LOOP FOREACH CurrentEmpresaCatalogo IN gListaCatalogosNomina
+        IF CurrentEmpresaCatalogo['activo'] = True THEN
+            Variables.IncreaseVariable Value: gTotalEmpresasCatalogoActivas IncrementValue: 1
+            SET gEmpresaCatalogoActual TO CurrentEmpresaCatalogo
+            SET gEmpresaCatalogoEncontrada TO True
+        END
+    END
+    IF gEmpresaCatalogoEncontrada = False THEN
+        SET gEstadoResolucionCatalogoNomina TO $'''ERROR'''
+        SET gMensajeError TO $'''No existe una empresa activa en el catalogo de conceptos de nomina'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF gTotalEmpresasCatalogoActivas > 1 THEN
+        SET gEstadoResolucionCatalogoNomina TO $'''ERROR'''
+        SET gMensajeError TO $'''Esta version PAD requiere una sola empresa activa en catalogo_conceptos_nomina.json'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Empresas activas: %gTotalEmpresasCatalogoActivas%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    SET gEmpresaIdCatalogoActual TO gEmpresaCatalogoActual['empresaId']
+    SET gEmpresaNombreCatalogoActual TO gEmpresaCatalogoActual['empresaNombre']
+    SET gConceptosSistemaEmpresaActual TO gEmpresaCatalogoActual['conceptosSistema']
+    SET gAsociacionesFuenteExcelEmpresaActual TO gEmpresaCatalogoActual['asociacionesFuenteExcel']
+    SET gAsociacionesTipoEventoEmpresaActual TO gEmpresaCatalogoActual['asociacionesTipoEvento']
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Empresa catalogo activa | Id: %gEmpresaIdCatalogoActual% | Nombre: %gEmpresaNombreCatalogoActual% | Conceptos sistema: %gConceptosSistemaEmpresaActual.Count% | Asociaciones fuente: %gAsociacionesFuenteExcelEmpresaActual.Count% | Asociaciones tipo evento: %gAsociacionesTipoEventoEmpresaActual.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    LOOP FOREACH CurrentItem IN gListaConciliacionNovedadesNomina
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesResolucionCatalogoNominaActual
+        IF gPartesResolucionCatalogoNominaActual.Count < 31 THEN
+            SET gEstadoResolucionCatalogoNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''Se recibio un registro conciliado de novedades nomina con formato invalido para resolucion de catalogo'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        SET gMarcadorFinResolucionCatalogoActual TO gPartesResolucionCatalogoNominaActual[gPartesResolucionCatalogoNominaActual.Count - 1]
+        IF gMarcadorFinResolucionCatalogoActual <> $'''__END__''' THEN
+            SET gEstadoResolucionCatalogoNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''Se recibio un registro conciliado sin marcador final __END__ para resolucion de catalogo'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        SET gIdEjecucionResolucionActual TO gPartesResolucionCatalogoNominaActual[0]
+        SET gLlaveFilaFuenteResolucionActual TO gPartesResolucionCatalogoNominaActual[1]
+        SET gOrigenAnalisisResolucionActual TO gPartesResolucionCatalogoNominaActual[2]
+        SET gArchivoOrigenResolucionActual TO gPartesResolucionCatalogoNominaActual[3]
+        SET gHojaOrigenResolucionActual TO gPartesResolucionCatalogoNominaActual[4]
+        SET gFilaExcelResolucionActual TO gPartesResolucionCatalogoNominaActual[5]
+        SET gCiudadResolucionActual TO gPartesResolucionCatalogoNominaActual[6]
+        SET gNombreEmpleadoResolucionActual TO gPartesResolucionCatalogoNominaActual[7]
+        SET gCedulaFuenteResolucionActual TO gPartesResolucionCatalogoNominaActual[8]
+        SET gAreaResolucionActual TO gPartesResolucionCatalogoNominaActual[9]
+        SET gSueldoBaseTextoResolucionActual TO gPartesResolucionCatalogoNominaActual[10]
+        SET gAuxExtralegalBaseTextoResolucionActual TO gPartesResolucionCatalogoNominaActual[11]
+        SET gConceptoFuenteExcelResolucionActual TO gPartesResolucionCatalogoNominaActual[12]
+        SET gColumnaOrigenExcelResolucionActual TO gPartesResolucionCatalogoNominaActual[13]
+        SET gValorConceptoFuenteResolucionActual TO gPartesResolucionCatalogoNominaActual[14]
+        SET gNovedadTextoOriginalResolucionActual TO gPartesResolucionCatalogoNominaActual[15]
+        SET gTextoFragmentoRelacionadoResolucionActual TO gPartesResolucionCatalogoNominaActual[16]
+        SET gTipoSugeridoIAResolucionActual TO gPartesResolucionCatalogoNominaActual[17]
+        SET gMontoMencionadoIAResolucionActual TO gPartesResolucionCatalogoNominaActual[18]
+        SET gDiasMencionadosIAResolucionActual TO gPartesResolucionCatalogoNominaActual[19]
+        SET gEstadoConciliacionResolucionActual TO gPartesResolucionCatalogoNominaActual[20]
+        SET gFuenteAutoritativaResolucionActual TO gPartesResolucionCatalogoNominaActual[21]
+        SET gPermiteAutoRegistroResolucionActual TO gPartesResolucionCatalogoNominaActual[22]
+        SET gRequiereCalculoResolucionActual TO gPartesResolucionCatalogoNominaActual[23]
+        SET gMetodoConciliacionResolucionActual TO gPartesResolucionCatalogoNominaActual[24]
+        SET gConfianzaConciliacionResolucionActual TO gPartesResolucionCatalogoNominaActual[25]
+        SET gMotivoRevisionResolucionActual TO gPartesResolucionCatalogoNominaActual[26]
+        SET gEstadoRevisionUsuarioResolucionActual TO gPartesResolucionCatalogoNominaActual[27]
+        SET gDecisionUsuarioResolucionActual TO $''''''
+        SET gObservacionUsuarioResolucionActual TO $''''''
+        IF gPartesResolucionCatalogoNominaActual.Count > 30 THEN
+            SET gDecisionUsuarioResolucionActual TO gPartesResolucionCatalogoNominaActual[28]
+            SET gObservacionUsuarioResolucionActual TO gPartesResolucionCatalogoNominaActual[29]
+        END
+        SET gBaseResolucionCatalogoActual TO $'''TEXTO_NOVEDAD'''
+        IF Not(IsEmpty(gConceptoFuenteExcelResolucionActual)) AND Not(IsEmpty(gTipoSugeridoIAResolucionActual)) AND gTipoSugeridoIAResolucionActual <> $'''NO_CLASIFICADO''' THEN
+            SET gBaseResolucionCatalogoActual TO $'''MIXTA'''
+            Variables.IncreaseVariable Value: gTotalBaseMixtaNomina IncrementValue: 1
+        ELSE IF Not(IsEmpty(gConceptoFuenteExcelResolucionActual)) THEN
+            SET gBaseResolucionCatalogoActual TO $'''CONCEPTO_FUENTE'''
+            Variables.IncreaseVariable Value: gTotalBaseConceptoFuenteNomina IncrementValue: 1
+        ELSE IF Not(IsEmpty(gTipoSugeridoIAResolucionActual)) AND gTipoSugeridoIAResolucionActual <> $'''NO_CLASIFICADO''' THEN
+            SET gBaseResolucionCatalogoActual TO $'''TIPO_EVENTO'''
+            Variables.IncreaseVariable Value: gTotalBaseTipoEventoNomina IncrementValue: 1
+            DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG RESOLUCION CATALOGO | BASE TIPO_EVENTO | Fila: %gFilaExcelResolucionActual% | Empleado: %gNombreEmpleadoResolucionActual% | TipoSugeridoIA: %gTipoSugeridoIAResolucionActual% | EstadoConciliacion: %gEstadoConciliacionResolucionActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            SET gBaseResolucionCatalogoActual TO $'''TEXTO_NOVEDAD'''
+            Variables.IncreaseVariable Value: gTotalBaseTextoNovedadNomina IncrementValue: 1
+            DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG RESOLUCION CATALOGO | BASE TEXTO_NOVEDAD | Fila: %gFilaExcelResolucionActual% | Empleado: %gNombreEmpleadoResolucionActual% | Novedad: %gNovedadTextoOriginalResolucionActual% | TipoSugeridoIA: %gTipoSugeridoIAResolucionActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        END
+        SET gEstadoResolucionCatalogoActual TO $'''NO_ENCONTRADO'''
+        SET gMetodoResolucionCatalogoActual TO $'''REGLA_CONFIGURADA'''
+        SET gCodigoSistemaResolucionActual TO $''''''
+        SET gConceptoSistemaResolucionActual TO $''''''
+        SET gTipoRegistroSistemaResolucionActual TO $''''''
+        SET gConfianzaResolucionCatalogoActual TO $'''BAJA'''
+        SET gRequiereValidacionUsuarioCatalogoActual TO True
+        SET gCandidatosCatalogoResolucionActual TO $''''''
+        SET gObservacionResolucionCatalogoActual TO $'''Sin coincidencia configurada en catalogo'''
+        SET gCodigosSistemaCandidatoCountActual TO 0
+        SET gSeEncontroAsociacionCatalogoActual TO False
+        IF gBaseResolucionCatalogoActual = $'''CONCEPTO_FUENTE''' OR gBaseResolucionCatalogoActual = $'''MIXTA''' THEN
+            LOOP FOREACH CurrentAsociacionFuenteExcelActual IN gAsociacionesFuenteExcelEmpresaActual
+                IF CurrentAsociacionFuenteExcelActual['activo'] = True THEN
+                    IF CurrentAsociacionFuenteExcelActual['conceptoFuenteExcel'] = gConceptoFuenteExcelResolucionActual THEN
+                        SET gSeEncontroAsociacionCatalogoActual TO True
+                        SET gMetodoResolucionCatalogoActual TO $'''REGLA_CONFIGURADA'''
+                        SET gCodigosSistemaCandidatoActual TO CurrentAsociacionFuenteExcelActual['codigosSistemaCandidato']
+                        LOOP FOREACH CurrentCodigoSistemaCandidatoActual IN gCodigosSistemaCandidatoActual
+                            Variables.IncreaseVariable Value: gCodigosSistemaCandidatoCountActual IncrementValue: 1
+                            SET gCodigoSistemaCandidatoTextoActual TO $'''%CurrentCodigoSistemaCandidatoActual%'''
+                            SET gConceptoSistemaCandidatoTextoActual TO $''''''
+                            SET gTipoRegistroSistemaCandidatoTextoActual TO $''''''
+                            LOOP FOREACH CurrentConceptoSistemaCatalogoActual IN gConceptosSistemaEmpresaActual
+                                IF CurrentConceptoSistemaCatalogoActual['codigoSistema'] = gCodigoSistemaCandidatoTextoActual THEN
+                                    SET gConceptoSistemaCandidatoTextoActual TO CurrentConceptoSistemaCatalogoActual['conceptoSistema']
+                                    SET gTipoRegistroSistemaCandidatoTextoActual TO CurrentConceptoSistemaCatalogoActual['tipoRegistro']
+                                END
+                            END
+                            IF IsEmpty(gCandidatosCatalogoResolucionActual) THEN
+                                SET gCandidatosCatalogoResolucionActual TO $'''%gCodigoSistemaCandidatoTextoActual% - %gConceptoSistemaCandidatoTextoActual%'''
+                            ELSE
+                                SET gCandidatosCatalogoResolucionActual TO $'''%gCandidatosCatalogoResolucionActual% || %gCodigoSistemaCandidatoTextoActual% - %gConceptoSistemaCandidatoTextoActual%'''
+                            END
+                            IF gCodigosSistemaCandidatoCountActual = 1 THEN
+                                SET gCodigoSistemaResolucionActual TO gCodigoSistemaCandidatoTextoActual
+                                SET gConceptoSistemaResolucionActual TO gConceptoSistemaCandidatoTextoActual
+                                SET gTipoRegistroSistemaResolucionActual TO gTipoRegistroSistemaCandidatoTextoActual
+                            END
+                        END
+                    END
+                END
+            END
+        END
+        IF gCodigosSistemaCandidatoCountActual = 0 AND (gBaseResolucionCatalogoActual = $'''TIPO_EVENTO''' OR gBaseResolucionCatalogoActual = $'''MIXTA''') THEN
+            LOOP FOREACH CurrentAsociacionTipoEventoActual IN gAsociacionesTipoEventoEmpresaActual
+                IF CurrentAsociacionTipoEventoActual['activo'] = True THEN
+                    IF CurrentAsociacionTipoEventoActual['tipoEvento'] = gTipoSugeridoIAResolucionActual THEN
+                        SET gSeEncontroAsociacionCatalogoActual TO True
+                        SET gMetodoResolucionCatalogoActual TO $'''REGLA_TIPO_EVENTO'''
+                        SET gCodigosSistemaCandidatoActual TO CurrentAsociacionTipoEventoActual['codigosSistemaCandidato']
+                        LOOP FOREACH CurrentCodigoSistemaTipoEventoActual IN gCodigosSistemaCandidatoActual
+                            Variables.IncreaseVariable Value: gCodigosSistemaCandidatoCountActual IncrementValue: 1
+                            SET gCodigoSistemaCandidatoTextoActual TO $'''%CurrentCodigoSistemaTipoEventoActual%'''
+                            SET gConceptoSistemaCandidatoTextoActual TO $''''''
+                            SET gTipoRegistroSistemaCandidatoTextoActual TO $''''''
+                            LOOP FOREACH CurrentConceptoSistemaCatalogoActual IN gConceptosSistemaEmpresaActual
+                                IF CurrentConceptoSistemaCatalogoActual['codigoSistema'] = gCodigoSistemaCandidatoTextoActual THEN
+                                    SET gConceptoSistemaCandidatoTextoActual TO CurrentConceptoSistemaCatalogoActual['conceptoSistema']
+                                    SET gTipoRegistroSistemaCandidatoTextoActual TO CurrentConceptoSistemaCatalogoActual['tipoRegistro']
+                                END
+                            END
+                            IF IsEmpty(gCandidatosCatalogoResolucionActual) THEN
+                                SET gCandidatosCatalogoResolucionActual TO $'''%gCodigoSistemaCandidatoTextoActual% - %gConceptoSistemaCandidatoTextoActual%'''
+                            ELSE
+                                SET gCandidatosCatalogoResolucionActual TO $'''%gCandidatosCatalogoResolucionActual% || %gCodigoSistemaCandidatoTextoActual% - %gConceptoSistemaCandidatoTextoActual%'''
+                            END
+                            IF gCodigosSistemaCandidatoCountActual = 1 THEN
+                                SET gCodigoSistemaResolucionActual TO gCodigoSistemaCandidatoTextoActual
+                                SET gConceptoSistemaResolucionActual TO gConceptoSistemaCandidatoTextoActual
+                                SET gTipoRegistroSistemaResolucionActual TO gTipoRegistroSistemaCandidatoTextoActual
+                            END
+                        END
+                    END
+                END
+            END
+        END
+        IF gCodigosSistemaCandidatoCountActual = 1 THEN
+            SET gEstadoResolucionCatalogoActual TO $'''RESUELTO'''
+            SET gConfianzaResolucionCatalogoActual TO $'''ALTA'''
+            SET gRequiereValidacionUsuarioCatalogoActual TO False
+            SET gObservacionResolucionCatalogoActual TO $'''Coincidencia unica encontrada en catalogo configurado'''
+            Variables.IncreaseVariable Value: gTotalCatalogoResueltos IncrementValue: 1
+            DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG RESOLUCION CATALOGO | RESUELTO | Fila: %gFilaExcelResolucionActual% | Empleado: %gNombreEmpleadoResolucionActual% | Base: %gBaseResolucionCatalogoActual% | ConceptoFuenteExcel: %gConceptoFuenteExcelResolucionActual% | TipoSugeridoIA: %gTipoSugeridoIAResolucionActual% | CodigoSistema: %gCodigoSistemaResolucionActual% | ConceptoSistema: %gConceptoSistemaResolucionActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE IF gCodigosSistemaCandidatoCountActual > 1 THEN
+            SET gEstadoResolucionCatalogoActual TO $'''AMBIGUO'''
+            SET gConfianzaResolucionCatalogoActual TO $'''MEDIA'''
+            SET gRequiereValidacionUsuarioCatalogoActual TO True
+            SET gObservacionResolucionCatalogoActual TO $'''Existen multiples candidatos configurados en catalogo para la fila conciliada'''
+            Variables.IncreaseVariable Value: gTotalCatalogoAmbiguos IncrementValue: 1
+        ELSE
+            SET gEstadoResolucionCatalogoActual TO $'''NO_ENCONTRADO'''
+            SET gConfianzaResolucionCatalogoActual TO $'''BAJA'''
+            SET gRequiereValidacionUsuarioCatalogoActual TO True
+            IF gBaseResolucionCatalogoActual = $'''TEXTO_NOVEDAD''' THEN
+                SET gObservacionResolucionCatalogoActual TO $'''Sin concepto fuente ni tipo evento resoluble en esta version; pendiente enriquecimiento de catalogo o IA'''
+            ELSE IF gSeEncontroAsociacionCatalogoActual = True THEN
+                SET gObservacionResolucionCatalogoActual TO $'''La asociacion existe pero no produjo candidatos validos contra conceptosSistema'''
+            ELSE
+                SET gObservacionResolucionCatalogoActual TO $'''No existe asociacion configurada en catalogo para la base de resolucion usada'''
+            END
+            Variables.IncreaseVariable Value: gTotalCatalogoNoEncontrados IncrementValue: 1
+            IF gBaseResolucionCatalogoActual = $'''TEXTO_NOVEDAD''' THEN
+                Variables.IncreaseVariable Value: gTotalFilasCatalogoSinBase IncrementValue: 1
+            END
+            DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG RESOLUCION CATALOGO | NO_ENCONTRADO | Fila: %gFilaExcelResolucionActual% | Empleado: %gNombreEmpleadoResolucionActual% | Base: %gBaseResolucionCatalogoActual% | ConceptoFuenteExcel: %gConceptoFuenteExcelResolucionActual% | TipoSugeridoIA: %gTipoSugeridoIAResolucionActual% | Novedad: %gNovedadTextoOriginalResolucionActual% | Observacion: %gObservacionResolucionCatalogoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        END
+        SET gResultadoResolucionCatalogoNominaActual TO $'''%gIdEjecucionResolucionActual%|%gLlaveFilaFuenteResolucionActual%|%gOrigenAnalisisResolucionActual%|%gArchivoOrigenResolucionActual%|%gHojaOrigenResolucionActual%|%gFilaExcelResolucionActual%|%gCiudadResolucionActual%|%gNombreEmpleadoResolucionActual%|%gCedulaFuenteResolucionActual%|%gAreaResolucionActual%|%gSueldoBaseTextoResolucionActual%|%gAuxExtralegalBaseTextoResolucionActual%|%gConceptoFuenteExcelResolucionActual%|%gColumnaOrigenExcelResolucionActual%|%gValorConceptoFuenteResolucionActual%|%gNovedadTextoOriginalResolucionActual%|%gTextoFragmentoRelacionadoResolucionActual%|%gTipoSugeridoIAResolucionActual%|%gMontoMencionadoIAResolucionActual%|%gDiasMencionadosIAResolucionActual%|%gEstadoConciliacionResolucionActual%|%gFuenteAutoritativaResolucionActual%|%gPermiteAutoRegistroResolucionActual%|%gRequiereCalculoResolucionActual%|%gMetodoConciliacionResolucionActual%|%gConfianzaConciliacionResolucionActual%|%gMotivoRevisionResolucionActual%|%gEstadoRevisionUsuarioResolucionActual%|%gDecisionUsuarioResolucionActual%|%gObservacionUsuarioResolucionActual%|%gBaseResolucionCatalogoActual%|%gEmpresaIdCatalogoActual%|%gEmpresaNombreCatalogoActual%|%gEstadoResolucionCatalogoActual%|%gMetodoResolucionCatalogoActual%|%gCodigoSistemaResolucionActual%|%gConceptoSistemaResolucionActual%|%gTipoRegistroSistemaResolucionActual%|%gConfianzaResolucionCatalogoActual%|%gRequiereValidacionUsuarioCatalogoActual%|%gCandidatosCatalogoResolucionActual%|%gObservacionResolucionCatalogoActual%|__END__'''
+        Variables.AddItemToList Item: gResultadoResolucionCatalogoNominaActual List: gListaResolucionCatalogoNovedadesNomina
+        Variables.IncreaseVariable Value: gTotalResolucionCatalogoNovedadesNomina IncrementValue: 1
+    END
+    IF gTotalResolucionCatalogoNovedadesNomina = 0 THEN
+        SET gEstadoResolucionCatalogoNomina TO $'''SIN_DATOS'''
+        SET gHayResolucionCatalogoNovedadesNomina TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resolucion catalogo conceptos nomina finalizada sin resultados''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoResolucionCatalogoNomina TO $'''OK'''
+        SET gHayResolucionCatalogoNovedadesNomina TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen resolucion catalogo conceptos nomina | Total: %gTotalResolucionCatalogoNovedadesNomina% | Resueltos: %gTotalCatalogoResueltos% | Ambiguos: %gTotalCatalogoAmbiguos% | No encontrados: %gTotalCatalogoNoEncontrados% | Sin base: %gTotalFilasCatalogoSinBase% | Base concepto fuente: %gTotalBaseConceptoFuenteNomina% | Base tipo evento: %gTotalBaseTipoEventoNomina% | Base texto: %gTotalBaseTextoNovedadNomina% | Base mixta: %gTotalBaseMixtaNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        IF gListaResolucionCatalogoNovedadesNomina.Count > 0 THEN
+            File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG resolucion catalogo item 0 | [%gListaResolucionCatalogoNovedadesNomina[0]%]''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        END
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

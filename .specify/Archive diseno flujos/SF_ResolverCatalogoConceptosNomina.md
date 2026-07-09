@@ -255,6 +255,21 @@ Reglas:
 - `gTotalCatalogoNoEncontrados` `Number`
 - `gHayResolucionCatalogoNovedadesNomina` `Boolean`
 
+## Variables de trabajo recomendadas
+
+- `gRutaCatalogoConceptosNomina` `Text`
+- `gCatalogoConceptosNominaTexto` `Text`
+- `gCatalogoConceptosNominaJson` `Custom object`
+- `gListaCatalogosNomina` `List`
+- `gEmpresaCatalogoEncontrada` `Boolean`
+- `gEmpresaCatalogoActual` `Custom object`
+- `gConceptosSistemaEmpresaActual` `List`
+- `gAsociacionesFuenteExcelEmpresaActual` `List`
+- `gAsociacionesTipoEventoEmpresaActual` `List`
+- `gCodigosSistemaCandidatoActual` `List`
+- `gCandidatosSistemaActual` `List`
+- `gTotalFilasCatalogoSinBase` `Number`
+
 ## Unidad de salida recomendada
 
 Cada registro de salida debe conservar toda la informacion de entrada y agregar al menos:
@@ -344,6 +359,78 @@ Resultado esperado:
 - `RequiereValidacionUsuario = True`
 - `MotivoRevision` debe explicar la tension entre texto y estructura
 
+## Lectura PAD del JSON
+
+### 1. Cargar archivo
+
+Acciones sugeridas:
+
+- `Read text from file`
+  - `File: gRutaCatalogoConceptosNomina`
+  - `Content => gCatalogoConceptosNominaTexto`
+
+- `Convert JSON to custom object`
+  - `Json: gCatalogoConceptosNominaTexto`
+  - `CustomObject => gCatalogoConceptosNominaJson`
+
+### 2. Tomar lista de empresas
+
+- `Set variable`
+  - `gListaCatalogosNomina = gCatalogoConceptosNominaJson['catalogosNomina']`
+
+### 3. Encontrar empresa objetivo
+
+Recorrer `gListaCatalogosNomina`.
+
+Por cada `CurrentEmpresaCatalogo` leer:
+
+- `CurrentEmpresaCatalogo['empresaId']`
+- `CurrentEmpresaCatalogo['empresaNombre']`
+- `CurrentEmpresaCatalogo['activo']`
+
+Cuando coincida con la empresa objetivo:
+
+- `gEmpresaCatalogoActual = CurrentEmpresaCatalogo`
+- `gConceptosSistemaEmpresaActual = CurrentEmpresaCatalogo['conceptosSistema']`
+- `gAsociacionesFuenteExcelEmpresaActual = CurrentEmpresaCatalogo['asociacionesFuenteExcel']`
+- `gAsociacionesTipoEventoEmpresaActual = CurrentEmpresaCatalogo['asociacionesTipoEvento']`
+
+## Estrategia de resolucion por base
+
+### Ruta 1. `CONCEPTO_FUENTE`
+
+1. normalizar `ConceptoFuenteExcel`
+2. recorrer `gAsociacionesFuenteExcelEmpresaActual`
+3. comparar contra `conceptoFuenteNormalizado`
+4. si hay match:
+   - tomar `codigosSistemaCandidato`
+5. traducir esos codigos contra `gConceptosSistemaEmpresaActual`
+
+### Ruta 2. `TIPO_EVENTO`
+
+1. normalizar `TipoSugeridoIA`
+2. recorrer `gAsociacionesTipoEventoEmpresaActual`
+3. comparar contra `tipoEventoNormalizado`
+4. si hay match:
+   - tomar `codigosSistemaCandidato`
+5. traducir esos codigos contra `gConceptosSistemaEmpresaActual`
+
+### Ruta 3. `TEXTO_NOVEDAD`
+
+1. si no hubo resolucion por `ConceptoFuenteExcel` ni por `TipoSugeridoIA`
+2. intentar IA sobre catalogo completo si el switch correspondiente esta activo
+3. si no hay IA o no hay salida suficiente:
+   - conservar `EstadoResolucionCatalogo = NO_ENCONTRADO`
+   - `RequiereValidacionUsuario = True`
+
+### Ruta 4. `MIXTA`
+
+1. conservar `ConceptoFuenteExcel`, `TipoSugeridoIA` y `NovedadTextoOriginal` como contexto
+2. intentar primero por `ConceptoFuenteExcel`
+3. si eso no resuelve suficientemente, usar `TipoSugeridoIA`
+4. si persiste ambiguedad:
+   - IA sobre candidatos o catalogo segun switch
+
 ## Uso esperado de IA en resolucion de catalogo
 
 La IA no entra de una sola forma. Deben existir dos rutas diferenciadas:
@@ -394,6 +481,7 @@ Salida esperada:
 
 - inicio del subflujo
 - empresa objetivo
+- ruta del catalogo cargado
 - total de filas conciliadas recibidas
 - total por base de resolucion
 - total resueltos
@@ -407,15 +495,23 @@ No se recomienda loggear todas las lineas resueltas salvo modo debug.
 
 1. inicializar estado, contadores y listas de salida
 2. validar que `gListaConciliacionNovedadesNomina` tenga elementos
-3. cargar catalogo de conceptos de la empresa objetivo
-4. recorrer cada fila recibida
-5. determinar `BaseResolucionCatalogo`
-6. ejecutar la ruta de resolucion correspondiente
-7. si aplica, invocar sugerencia IA segun switches
-8. construir registro enriquecido de salida
-9. agregar a lista final
-10. actualizar contadores por estado
-11. registrar resumen final
+3. construir `gRutaCatalogoConceptosNomina`
+4. leer archivo JSON de catalogo
+5. convertir JSON a custom object
+6. ubicar empresa objetivo y capturar:
+   - `conceptosSistema`
+   - `asociacionesFuenteExcel`
+   - `asociacionesTipoEvento`
+7. validar que la empresa exista y este activa
+8. recorrer cada fila recibida
+9. determinar `BaseResolucionCatalogo`
+10. ejecutar la ruta de resolucion correspondiente
+11. traducir codigos candidatos a conceptos reales del sistema
+12. si aplica, invocar sugerencia IA segun switches
+13. construir registro enriquecido de salida
+14. agregar a lista final
+15. actualizar contadores por estado
+16. registrar resumen final
 
 ## Manejo de errores
 

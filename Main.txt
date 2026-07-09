@@ -15,6 +15,7 @@ IF gEstadoInicializacion = $'''OK''' THEN
             IF gHayRegistrosNominaLeidos = True THEN
                 SET gHayNovedadesTextoAnalizadas TO False
                 SET gHayConciliacionNovedadesNomina TO False
+                SET gHayResolucionCatalogoNovedadesNomina TO False
                 CALL SF_ExpandirConceptosNomina
                 IF gHayRegistrosFuenteNovedadesNomina = True THEN
                     CALL SF_EscribirRegistrosFuenteNovedadesNominaExcel
@@ -29,6 +30,14 @@ IF gEstadoInicializacion = $'''OK''' THEN
                     CALL SF_ConciliarItemsNomina
                     IF gHayConciliacionNovedadesNomina = True THEN
                         CALL SF_EscribirConciliacionNovedadesNominaExcel
+                        CALL SF_ResolverCatalogoConceptosNomina
+                        IF gHayResolucionCatalogoNovedadesNomina = True THEN
+                            CALL SF_EnriquecerConciliacionNovedadesNominaConCatalogo
+                            CALL SF_ResolverCatalogoConceptosNominaIA
+                            IF gHayResolucionCatalogoNominaIA = True THEN
+                                CALL SF_EnriquecerConciliacionNovedadesNominaConCatalogoIA
+                            END
+                        END
                     END
                 END
             END

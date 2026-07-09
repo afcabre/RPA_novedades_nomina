@@ -1,0 +1,186 @@
+# SF_EnriquecerConciliacionNovedadesNominaConCatalogoIA
+# Enriquece la hoja conciliacionNovedadesNomina con la sugerencia IA derivada de gListaResolucionCatalogoNovedadesNominaIA
+SET gEstadoEnriquecimientoConciliacionNovedadesNominaConCatalogoIA TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalFilasEnriquecidasCatalogoIA TO 0
+SET gTotalFilasCatalogoIAConErrorFormato TO 0
+SET gTotalFilasCatalogoIASinMatch TO 0
+SET gHayFilasEnriquecidasCatalogoIA TO False
+SET gExcelCatalogoIAAbierto TO False
+SET gNombreHojaCatalogoIA TO $'''conciliacionNovedadesNomina'''
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoEnriquecimientoConciliacionNovedadesNominaConCatalogoIA TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio enriquecimiento conciliacion novedades nomina con catalogo IA | Archivo: %gRutaArchivoAnalisisNovedades% | Registros: %gListaResolucionCatalogoNovedadesNominaIA.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaResolucionCatalogoNovedadesNominaIA.Count = 0 THEN
+        SET gEstadoEnriquecimientoConciliacionNovedadesNominaConCatalogoIA TO $'''SIN_DATOS'''
+        SET gMensajeError TO $'''No hay sugerencias IA de resolucion de catalogo para escribir en Excel'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_DATOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF (File.IfFile.DoesNotExist File: gRutaArchivoAnalisisNovedades) THEN
+        SET gEstadoEnriquecimientoConciliacionNovedadesNominaConCatalogoIA TO $'''ERROR'''
+        SET gMensajeError TO $'''No existe el archivo Excel de analisis de novedades para enriquecimiento con catalogo IA'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Ruta: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: gRutaArchivoAnalisisNovedades Visible: False ReadOnly: False Instance=> ExcelInstance
+    SET gExcelCatalogoIAAbierto TO True
+    SET gExisteHojaCatalogoIA TO False
+    Excel.GetAllWorksheets Instance: ExcelInstance Worksheets=> gHojasArchivoCatalogoIA
+    LOOP FOREACH CurrentSheetCatalogoIA IN gHojasArchivoCatalogoIA
+        IF CurrentSheetCatalogoIA = gNombreHojaCatalogoIA THEN
+            SET gExisteHojaCatalogoIA TO True
+        END
+    END
+    IF gExisteHojaCatalogoIA = False THEN
+        SET gEstadoEnriquecimientoConciliacionNovedadesNominaConCatalogoIA TO $'''ERROR'''
+        SET gMensajeError TO $'''No existe la hoja conciliacionNovedadesNomina para enriquecer con catalogo IA'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+        SET gExcelCatalogoIAAbierto TO False
+        EXIT FUNCTION
+    END
+    Excel.SetActiveWorksheet.ActivateWorksheetByName Instance: ExcelInstance Name: gNombreHojaCatalogoIA
+    Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: 1 GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gCabeceraCatalogoIAA1
+    IF IsEmpty(gCabeceraCatalogoIAA1) THEN
+        SET gEstadoEnriquecimientoConciliacionNovedadesNominaConCatalogoIA TO $'''ERROR'''
+        SET gMensajeError TO $'''La hoja conciliacionNovedadesNomina no contiene cabecera; no se puede enriquecer con catalogo IA'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+        SET gExcelCatalogoIAAbierto TO False
+        EXIT FUNCTION
+    END
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''MetodoResolucionCatalogoIA''' Column: $'''AR''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''CodigoSistemaSugeridoIA''' Column: $'''AS''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ConceptoSistemaSugeridoIA''' Column: $'''AT''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ConfianzaResolucionCatalogoIA''' Column: $'''AU''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''RequiereValidacionUsuarioIA''' Column: $'''AV''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ObservacionResolucionCatalogoIA''' Column: $'''AW''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''EstadoResolucionCatalogoFinal''' Column: $'''AX''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''MetodoResolucionCatalogoFinal''' Column: $'''AY''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''CodigoSistemaFinal''' Column: $'''AZ''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ConceptoSistemaFinal''' Column: $'''BA''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ConfianzaResolucionCatalogoFinal''' Column: $'''BB''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''RequiereValidacionUsuarioFinal''' Column: $'''BC''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ObservacionResolucionCatalogoFinal''' Column: $'''BD''' Row: 1
+    SET gFilaMaximaCatalogoIAActual TO 2
+    SET gBuscarUltimaFilaCatalogoIA TO True
+    LOOP WHILE gBuscarUltimaFilaCatalogoIA = True
+        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: gFilaMaximaCatalogoIAActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gValorControlFilaCatalogoIA
+        IF IsEmpty(gValorControlFilaCatalogoIA) THEN
+            SET gBuscarUltimaFilaCatalogoIA TO False
+        ELSE
+            Variables.IncreaseVariable Value: gFilaMaximaCatalogoIAActual IncrementValue: 1
+        END
+    END
+    Variables.DecreaseVariable Value: gFilaMaximaCatalogoIAActual DecrementValue: 1
+    LOOP FOREACH CurrentItem IN gListaResolucionCatalogoNovedadesNominaIA
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesCatalogoIAActual
+        IF gPartesCatalogoIAActual.Count < 49 THEN
+            Variables.IncreaseVariable Value: gTotalFilasCatalogoIAConErrorFormato IncrementValue: 1
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | Registro resolucion catalogo IA con formato invalido | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            SET gMarcadorFinCatalogoIAActual TO gPartesCatalogoIAActual[gPartesCatalogoIAActual.Count - 1]
+            IF gMarcadorFinCatalogoIAActual <> $'''__END__''' THEN
+                Variables.IncreaseVariable Value: gTotalFilasCatalogoIAConErrorFormato IncrementValue: 1
+                File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | Registro resolucion catalogo IA sin marcador final __END__ | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            ELSE
+                SET gIdEjecucionCatalogoIAActual TO gPartesCatalogoIAActual[0]
+                SET gLlaveFilaFuenteCatalogoIAActual TO gPartesCatalogoIAActual[1]
+                SET gOrigenAnalisisCatalogoIAActual TO gPartesCatalogoIAActual[2]
+                SET gMetodoResolucionCatalogoIAActual TO gPartesCatalogoIAActual[42]
+                SET gCodigoSistemaSugeridoIAActual TO gPartesCatalogoIAActual[43]
+                SET gConceptoSistemaSugeridoIAActual TO gPartesCatalogoIAActual[44]
+                SET gConfianzaResolucionCatalogoIAActual TO gPartesCatalogoIAActual[45]
+                SET gRequiereValidacionUsuarioIAActual TO gPartesCatalogoIAActual[46]
+                SET gObservacionResolucionCatalogoIAActual TO gPartesCatalogoIAActual[47]
+                SET gEstadoResolucionCatalogoBaseIAFinalActual TO gPartesCatalogoIAActual[33]
+                SET gMetodoResolucionCatalogoBaseIAFinalActual TO gPartesCatalogoIAActual[34]
+                SET gCodigoSistemaBaseIAFinalActual TO gPartesCatalogoIAActual[35]
+                SET gConceptoSistemaBaseIAFinalActual TO gPartesCatalogoIAActual[36]
+                SET gConfianzaResolucionCatalogoBaseIAFinalActual TO gPartesCatalogoIAActual[38]
+                SET gRequiereValidacionUsuarioBaseIAFinalActual TO gPartesCatalogoIAActual[39]
+                SET gObservacionResolucionCatalogoBaseIAFinalActual TO gPartesCatalogoIAActual[41]
+                SET gEstadoResolucionCatalogoFinalActual TO gEstadoResolucionCatalogoBaseIAFinalActual
+                SET gMetodoResolucionCatalogoFinalActual TO gMetodoResolucionCatalogoBaseIAFinalActual
+                SET gCodigoSistemaFinalActual TO gCodigoSistemaBaseIAFinalActual
+                SET gConceptoSistemaFinalActual TO gConceptoSistemaBaseIAFinalActual
+                SET gConfianzaResolucionCatalogoFinalActual TO gConfianzaResolucionCatalogoBaseIAFinalActual
+                SET gRequiereValidacionUsuarioFinalActual TO gRequiereValidacionUsuarioBaseIAFinalActual
+                SET gObservacionResolucionCatalogoFinalActual TO gObservacionResolucionCatalogoBaseIAFinalActual
+                IF Not(IsEmpty(gCodigoSistemaSugeridoIAActual)) OR Not(IsEmpty(gConceptoSistemaSugeridoIAActual)) THEN
+                    SET gEstadoResolucionCatalogoFinalActual TO $'''SUGERIDO_IA'''
+                    SET gMetodoResolucionCatalogoFinalActual TO gMetodoResolucionCatalogoIAActual
+                    SET gCodigoSistemaFinalActual TO gCodigoSistemaSugeridoIAActual
+                    SET gConceptoSistemaFinalActual TO gConceptoSistemaSugeridoIAActual
+                    SET gConfianzaResolucionCatalogoFinalActual TO gConfianzaResolucionCatalogoIAActual
+                    SET gRequiereValidacionUsuarioFinalActual TO gRequiereValidacionUsuarioIAActual
+                    SET gObservacionResolucionCatalogoFinalActual TO gObservacionResolucionCatalogoIAActual
+                END
+                SET gFilaMatchCatalogoIAActual TO 2
+                SET gFilaEncontradaCatalogoIAActual TO 0
+                SET gBuscarMatchCatalogoIAActual TO True
+                LOOP WHILE gBuscarMatchCatalogoIAActual = True
+                    IF gFilaMatchCatalogoIAActual > gFilaMaximaCatalogoIAActual THEN
+                        SET gBuscarMatchCatalogoIAActual TO False
+                    ELSE
+                        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: gFilaMatchCatalogoIAActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gIdEjecucionFilaMatchCatalogoIAActual
+                        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''B''' StartRow: gFilaMatchCatalogoIAActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gLlaveFilaFilaMatchCatalogoIAActual
+                        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''C''' StartRow: gFilaMatchCatalogoIAActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gOrigenAnalisisFilaMatchCatalogoIAActual
+                        IF gIdEjecucionFilaMatchCatalogoIAActual = gIdEjecucionCatalogoIAActual AND gLlaveFilaFilaMatchCatalogoIAActual = gLlaveFilaFuenteCatalogoIAActual AND gOrigenAnalisisFilaMatchCatalogoIAActual = gOrigenAnalisisCatalogoIAActual THEN
+                            SET gFilaEncontradaCatalogoIAActual TO gFilaMatchCatalogoIAActual
+                            SET gBuscarMatchCatalogoIAActual TO False
+                        ELSE
+                            Variables.IncreaseVariable Value: gFilaMatchCatalogoIAActual IncrementValue: 1
+                        END
+                    END
+                END
+                IF gFilaEncontradaCatalogoIAActual = 0 THEN
+                    Variables.IncreaseVariable Value: gTotalFilasCatalogoIASinMatch IncrementValue: 1
+                    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | No se encontro fila conciliacion para enriquecer con catalogo IA | IdEjecucion: %gIdEjecucionCatalogoIAActual% | Llave: %gLlaveFilaFuenteCatalogoIAActual% | Origen: %gOrigenAnalisisCatalogoIAActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                ELSE
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gMetodoResolucionCatalogoIAActual Column: $'''AR''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gCodigoSistemaSugeridoIAActual Column: $'''AS''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gConceptoSistemaSugeridoIAActual Column: $'''AT''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gConfianzaResolucionCatalogoIAActual Column: $'''AU''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gRequiereValidacionUsuarioIAActual Column: $'''AV''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gObservacionResolucionCatalogoIAActual Column: $'''AW''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gEstadoResolucionCatalogoFinalActual Column: $'''AX''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gMetodoResolucionCatalogoFinalActual Column: $'''AY''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gCodigoSistemaFinalActual Column: $'''AZ''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gConceptoSistemaFinalActual Column: $'''BA''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gConfianzaResolucionCatalogoFinalActual Column: $'''BB''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gRequiereValidacionUsuarioFinalActual Column: $'''BC''' Row: gFilaEncontradaCatalogoIAActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gObservacionResolucionCatalogoFinalActual Column: $'''BD''' Row: gFilaEncontradaCatalogoIAActual
+                    Variables.IncreaseVariable Value: gTotalFilasEnriquecidasCatalogoIA IncrementValue: 1
+                END
+            END
+        END
+    END
+    Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+    SET gExcelCatalogoIAAbierto TO False
+    IF gTotalFilasEnriquecidasCatalogoIA = 0 THEN
+        SET gEstadoEnriquecimientoConciliacionNovedadesNominaConCatalogoIA TO $'''SIN_DATOS'''
+        SET gHayFilasEnriquecidasCatalogoIA TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Enriquecimiento conciliacion novedades nomina con catalogo IA finalizado sin filas enriquecidas''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoEnriquecimientoConciliacionNovedadesNominaConCatalogoIA TO $'''OK'''
+        SET gHayFilasEnriquecidasCatalogoIA TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen enriquecimiento conciliacion novedades nomina con catalogo IA | Filas enriquecidas: %gTotalFilasEnriquecidasCatalogoIA% | Filas con error formato: %gTotalFilasCatalogoIAConErrorFormato% | Filas sin match: %gTotalFilasCatalogoIASinMatch% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    IF gExcelCatalogoIAAbierto = True THEN
+        Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+        SET gExcelCatalogoIAAbierto TO False
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

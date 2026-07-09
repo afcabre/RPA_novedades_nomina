@@ -1,0 +1,192 @@
+# SF_EnriquecerConciliacionNovedadesNominaConCatalogo
+# Enriquece la hoja conciliacionNovedadesNomina con el resultado de gListaResolucionCatalogoNovedadesNomina
+SET gEstadoEscrituraResolucionCatalogoNovedadesNominaExcel TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalFilasResolucionCatalogoNovedadesNominaEscritas TO 0
+SET gTotalFilasResolucionCatalogoNovedadesNominaConErrorFormato TO 0
+SET gTotalFilasResolucionCatalogoNovedadesNominaSinMatch TO 0
+SET gHayFilasResolucionCatalogoNovedadesNominaEscritas TO False
+SET gExcelResolucionCatalogoNovedadesNominaAbierto TO False
+SET gNombreHojaResolucionCatalogoNovedadesNomina TO $'''conciliacionNovedadesNomina'''
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoEscrituraResolucionCatalogoNovedadesNominaExcel TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio enriquecimiento conciliacion novedades nomina con catalogo | Archivo: %gRutaArchivoAnalisisNovedades% | Registros: %gListaResolucionCatalogoNovedadesNomina.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaResolucionCatalogoNovedadesNomina.Count = 0 THEN
+        SET gEstadoEscrituraResolucionCatalogoNovedadesNominaExcel TO $'''SIN_DATOS'''
+        SET gMensajeError TO $'''No hay resolucion de catalogo de novedades nomina para escribir en Excel'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_DATOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF (File.IfFile.DoesNotExist File: gRutaArchivoAnalisisNovedades) THEN
+        SET gEstadoEscrituraResolucionCatalogoNovedadesNominaExcel TO $'''ERROR'''
+        SET gMensajeError TO $'''No existe el archivo Excel de analisis de novedades para enriquecimiento de conciliacion con catalogo'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Ruta: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: gRutaArchivoAnalisisNovedades Visible: False ReadOnly: False Instance=> ExcelInstance
+    SET gExcelResolucionCatalogoNovedadesNominaAbierto TO True
+    SET gExisteHojaResolucionCatalogoNovedadesNomina TO False
+    Excel.GetAllWorksheets Instance: ExcelInstance Worksheets=> gHojasArchivoResolucionCatalogoNovedadesNomina
+    LOOP FOREACH CurrentSheetResolucionCatalogoNovedadesNomina IN gHojasArchivoResolucionCatalogoNovedadesNomina
+        IF CurrentSheetResolucionCatalogoNovedadesNomina = gNombreHojaResolucionCatalogoNovedadesNomina THEN
+            SET gExisteHojaResolucionCatalogoNovedadesNomina TO True
+        END
+    END
+    IF gExisteHojaResolucionCatalogoNovedadesNomina = False THEN
+        SET gEstadoEscrituraResolucionCatalogoNovedadesNominaExcel TO $'''ERROR'''
+        SET gMensajeError TO $'''No existe la hoja conciliacionNovedadesNomina para enriquecer con catalogo'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+        SET gExcelResolucionCatalogoNovedadesNominaAbierto TO False
+        EXIT FUNCTION
+    END
+    Excel.SetActiveWorksheet.ActivateWorksheetByName Instance: ExcelInstance Name: gNombreHojaResolucionCatalogoNovedadesNomina
+    Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: 1 GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gCabeceraResolucionCatalogoNovedadesNominaA1
+    IF IsEmpty(gCabeceraResolucionCatalogoNovedadesNominaA1) THEN
+        SET gEstadoEscrituraResolucionCatalogoNovedadesNominaExcel TO $'''ERROR'''
+        SET gMensajeError TO $'''La hoja conciliacionNovedadesNomina no contiene cabecera; no se puede enriquecer con catalogo'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+        SET gExcelResolucionCatalogoNovedadesNominaAbierto TO False
+        EXIT FUNCTION
+    END
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''BaseResolucionCatalogo''' Column: $'''AE''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''EmpresaIdCatalogo''' Column: $'''AF''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''EmpresaNombreCatalogo''' Column: $'''AG''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''EstadoResolucionCatalogo''' Column: $'''AH''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''MetodoResolucionCatalogo''' Column: $'''AI''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''CodigoSistemaResuelto''' Column: $'''AJ''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ConceptoSistemaResuelto''' Column: $'''AK''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''TipoRegistroSistema''' Column: $'''AL''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ConfianzaResolucionCatalogo''' Column: $'''AM''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''RequiereValidacionUsuarioCatalogo''' Column: $'''AN''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''CandidatosCodigoSistema''' Column: $'''AO''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''CandidatosConceptoSistema''' Column: $'''AP''' Row: 1
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''ObservacionResolucionCatalogo''' Column: $'''AQ''' Row: 1
+    SET gFilaMaximaConciliacionNovedadesNominaActual TO 2
+    SET gBuscarUltimaFilaConciliacionNovedadesNomina TO True
+    LOOP WHILE gBuscarUltimaFilaConciliacionNovedadesNomina = True
+        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: gFilaMaximaConciliacionNovedadesNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gValorControlFilaResolucionCatalogoNovedadesNomina
+        IF IsEmpty(gValorControlFilaResolucionCatalogoNovedadesNomina) THEN
+            SET gBuscarUltimaFilaConciliacionNovedadesNomina TO False
+        ELSE
+            Variables.IncreaseVariable Value: gFilaMaximaConciliacionNovedadesNominaActual IncrementValue: 1
+        END
+    END
+    Variables.DecreaseVariable Value: gFilaMaximaConciliacionNovedadesNominaActual DecrementValue: 1
+    LOOP FOREACH CurrentItem IN gListaResolucionCatalogoNovedadesNomina
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesResolucionCatalogoNovedadesNominaExcelActual
+        IF gPartesResolucionCatalogoNovedadesNominaExcelActual.Count < 43 THEN
+            Variables.IncreaseVariable Value: gTotalFilasResolucionCatalogoNovedadesNominaConErrorFormato IncrementValue: 1
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | Registro resolucion catalogo novedades nomina con formato invalido | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            SET gMarcadorFinResolucionCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[gPartesResolucionCatalogoNovedadesNominaExcelActual.Count - 1]
+            IF gMarcadorFinResolucionCatalogoNovedadesNominaExcelActual <> $'''__END__''' THEN
+                Variables.IncreaseVariable Value: gTotalFilasResolucionCatalogoNovedadesNominaConErrorFormato IncrementValue: 1
+                File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | Registro resolucion catalogo novedades nomina sin marcador final __END__ | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            ELSE
+                SET gIdEjecucionResolucionCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[0]
+                SET gLlaveFilaFuenteResolucionCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[1]
+                SET gOrigenAnalisisResolucionCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[2]
+                SET gBaseResolucionCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[30]
+                SET gEmpresaIdCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[31]
+                SET gEmpresaNombreCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[32]
+                SET gEstadoResolucionCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[33]
+                SET gMetodoResolucionCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[34]
+                SET gCodigoSistemaResueltoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[35]
+                SET gConceptoSistemaResueltoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[36]
+                SET gTipoRegistroSistemaNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[37]
+                SET gConfianzaResolucionCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[38]
+                SET gRequiereValidacionUsuarioCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[39]
+                SET gCandidatosCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[40]
+                SET gObservacionResolucionCatalogoNovedadesNominaExcelActual TO gPartesResolucionCatalogoNovedadesNominaExcelActual[41]
+                SET gCandidatosCodigoSistemaNovedadesNominaExcelActual TO $''''''
+                SET gCandidatosConceptoSistemaNovedadesNominaExcelActual TO $''''''
+                IF Not(IsEmpty(gCandidatosCatalogoNovedadesNominaExcelActual)) THEN
+                    Text.SplitText.SplitWithDelimiter Text: gCandidatosCatalogoNovedadesNominaExcelActual CustomDelimiter: $'''||''' IsRegEx: False Result=> gListaCandidatosCatalogoNovedadesNominaExcelActual
+                    LOOP FOREACH CurrentCandidatoCatalogoNovedadesNominaExcelActual IN gListaCandidatosCatalogoNovedadesNominaExcelActual
+                        Text.SplitText.SplitWithDelimiter Text: CurrentCandidatoCatalogoNovedadesNominaExcelActual CustomDelimiter: $''' - ''' IsRegEx: False Result=> gPartesCandidatoCatalogoNovedadesNominaExcelActual
+                        SET gCodigoCandidatoCatalogoNovedadesNominaExcelActual TO gPartesCandidatoCatalogoNovedadesNominaExcelActual[0]
+                        SET gConceptoCandidatoCatalogoNovedadesNominaExcelActual TO $''''''
+                        IF gPartesCandidatoCatalogoNovedadesNominaExcelActual.Count > 1 THEN
+                            SET gConceptoCandidatoCatalogoNovedadesNominaExcelActual TO gPartesCandidatoCatalogoNovedadesNominaExcelActual[1]
+                        END
+                        IF IsEmpty(gCandidatosCodigoSistemaNovedadesNominaExcelActual) THEN
+                            SET gCandidatosCodigoSistemaNovedadesNominaExcelActual TO gCodigoCandidatoCatalogoNovedadesNominaExcelActual
+                        ELSE
+                            SET gCandidatosCodigoSistemaNovedadesNominaExcelActual TO $'''%gCandidatosCodigoSistemaNovedadesNominaExcelActual%||%gCodigoCandidatoCatalogoNovedadesNominaExcelActual%'''
+                        END
+                        IF IsEmpty(gCandidatosConceptoSistemaNovedadesNominaExcelActual) THEN
+                            SET gCandidatosConceptoSistemaNovedadesNominaExcelActual TO gConceptoCandidatoCatalogoNovedadesNominaExcelActual
+                        ELSE
+                            SET gCandidatosConceptoSistemaNovedadesNominaExcelActual TO $'''%gCandidatosConceptoSistemaNovedadesNominaExcelActual%||%gConceptoCandidatoCatalogoNovedadesNominaExcelActual%'''
+                        END
+                    END
+                END
+                SET gFilaMatchResolucionCatalogoNovedadesNominaActual TO 2
+                SET gFilaEncontradaResolucionCatalogoNovedadesNominaActual TO 0
+                SET gBuscarMatchResolucionCatalogoNovedadesNominaActual TO True
+                LOOP WHILE gBuscarMatchResolucionCatalogoNovedadesNominaActual = True
+                    IF gFilaMatchResolucionCatalogoNovedadesNominaActual > gFilaMaximaConciliacionNovedadesNominaActual THEN
+                        SET gBuscarMatchResolucionCatalogoNovedadesNominaActual TO False
+                    ELSE
+                        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: gFilaMatchResolucionCatalogoNovedadesNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gIdEjecucionFilaMatchResolucionCatalogoNovedadesNominaActual
+                        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''B''' StartRow: gFilaMatchResolucionCatalogoNovedadesNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gLlaveFilaFilaMatchResolucionCatalogoNovedadesNominaActual
+                        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''C''' StartRow: gFilaMatchResolucionCatalogoNovedadesNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gOrigenAnalisisFilaMatchResolucionCatalogoNovedadesNominaActual
+                        IF gIdEjecucionFilaMatchResolucionCatalogoNovedadesNominaActual = gIdEjecucionResolucionCatalogoNovedadesNominaExcelActual AND gLlaveFilaFilaMatchResolucionCatalogoNovedadesNominaActual = gLlaveFilaFuenteResolucionCatalogoNovedadesNominaExcelActual AND gOrigenAnalisisFilaMatchResolucionCatalogoNovedadesNominaActual = gOrigenAnalisisResolucionCatalogoNovedadesNominaExcelActual THEN
+                            SET gFilaEncontradaResolucionCatalogoNovedadesNominaActual TO gFilaMatchResolucionCatalogoNovedadesNominaActual
+                            SET gBuscarMatchResolucionCatalogoNovedadesNominaActual TO False
+                        ELSE
+                            Variables.IncreaseVariable Value: gFilaMatchResolucionCatalogoNovedadesNominaActual IncrementValue: 1
+                        END
+                    END
+                END
+                IF gFilaEncontradaResolucionCatalogoNovedadesNominaActual = 0 THEN
+                    Variables.IncreaseVariable Value: gTotalFilasResolucionCatalogoNovedadesNominaSinMatch IncrementValue: 1
+                    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | No se encontro fila conciliacion para enriquecer con catalogo | IdEjecucion: %gIdEjecucionResolucionCatalogoNovedadesNominaExcelActual% | Llave: %gLlaveFilaFuenteResolucionCatalogoNovedadesNominaExcelActual% | Origen: %gOrigenAnalisisResolucionCatalogoNovedadesNominaExcelActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                ELSE
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gBaseResolucionCatalogoNovedadesNominaExcelActual Column: $'''AE''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gEmpresaIdCatalogoNovedadesNominaExcelActual Column: $'''AF''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gEmpresaNombreCatalogoNovedadesNominaExcelActual Column: $'''AG''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gEstadoResolucionCatalogoNovedadesNominaExcelActual Column: $'''AH''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gMetodoResolucionCatalogoNovedadesNominaExcelActual Column: $'''AI''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gCodigoSistemaResueltoNovedadesNominaExcelActual Column: $'''AJ''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gConceptoSistemaResueltoNovedadesNominaExcelActual Column: $'''AK''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gTipoRegistroSistemaNovedadesNominaExcelActual Column: $'''AL''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gConfianzaResolucionCatalogoNovedadesNominaExcelActual Column: $'''AM''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gRequiereValidacionUsuarioCatalogoNovedadesNominaExcelActual Column: $'''AN''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gCandidatosCodigoSistemaNovedadesNominaExcelActual Column: $'''AO''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gCandidatosConceptoSistemaNovedadesNominaExcelActual Column: $'''AP''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: gObservacionResolucionCatalogoNovedadesNominaExcelActual Column: $'''AQ''' Row: gFilaEncontradaResolucionCatalogoNovedadesNominaActual
+                    Variables.IncreaseVariable Value: gTotalFilasResolucionCatalogoNovedadesNominaEscritas IncrementValue: 1
+                END
+            END
+        END
+    END
+    Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+    SET gExcelResolucionCatalogoNovedadesNominaAbierto TO False
+    IF gTotalFilasResolucionCatalogoNovedadesNominaEscritas = 0 THEN
+        SET gEstadoEscrituraResolucionCatalogoNovedadesNominaExcel TO $'''SIN_DATOS'''
+        SET gHayFilasResolucionCatalogoNovedadesNominaEscritas TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Enriquecimiento conciliacion novedades nomina con catalogo finalizado sin filas enriquecidas''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoEscrituraResolucionCatalogoNovedadesNominaExcel TO $'''OK'''
+        SET gHayFilasResolucionCatalogoNovedadesNominaEscritas TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen enriquecimiento conciliacion novedades nomina con catalogo | Filas enriquecidas: %gTotalFilasResolucionCatalogoNovedadesNominaEscritas% | Filas con error formato: %gTotalFilasResolucionCatalogoNovedadesNominaConErrorFormato% | Filas sin match: %gTotalFilasResolucionCatalogoNovedadesNominaSinMatch% | Archivo: %gRutaArchivoAnalisisNovedades%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    IF gExcelResolucionCatalogoNovedadesNominaAbierto = True THEN
+        Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+        SET gExcelResolucionCatalogoNovedadesNominaAbierto TO False
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

@@ -20,7 +20,7 @@ ON BLOCK ERROR all
     SET gEsErrorControlado TO True
     THROW ERROR
 END
-    # Leer configuracion IA desde config.json
+    # Leer configuracion base e IA desde config.json
     IF (File.IfFile.DoesNotExist File: pRutaConfigJson) THEN
         SET gMensajeError TO $'''No se encontro config.json para cargar la configuracion de IA'''
         SET gEstadoInicializacion TO $'''ERROR'''
@@ -33,12 +33,24 @@ END
     SET pDirectorioSalidas TO gConfigJsonObjeto.rutas.directorioSalidas
     SET pDirectorioLogs TO gConfigJsonObjeto.rutas.directorioLogs
     SET pDirectorioPlantillas TO gConfigJsonObjeto.rutas.directorioPlantillas
-    SET pProveedorIA TO gConfigJsonObjeto.analisisNovedadTextoIA.proveedorIA
-    SET pModeloIA TO gConfigJsonObjeto.analisisNovedadTextoIA.modeloIA
-    SET pEndpointIA TO gConfigJsonObjeto.analisisNovedadTextoIA.endpointIA
-    SET pCredentialAliasIA TO gConfigJsonObjeto.analisisNovedadTextoIA.credentialAliasIA
-    SET pTimeoutIAsegundos TO gConfigJsonObjeto.analisisNovedadTextoIA.timeoutIAsegundos
-    SET pDebugIA TO gConfigJsonObjeto.analisisNovedadTextoIA.debugIA
+    SET pProveedorIAAnalisisTexto TO gConfigJsonObjeto.analisisNovedadTextoIA.proveedorIA
+    SET pModeloIAAnalisisTexto TO gConfigJsonObjeto.analisisNovedadTextoIA.modeloIA
+    SET pEndpointIAAnalisisTexto TO gConfigJsonObjeto.analisisNovedadTextoIA.endpointIA
+    SET pCredentialAliasIAAnalisisTexto TO gConfigJsonObjeto.analisisNovedadTextoIA.credentialAliasIA
+    SET pTimeoutIAsegundosAnalisisTexto TO gConfigJsonObjeto.analisisNovedadTextoIA.timeoutIAsegundos
+    SET pDebugIAAnalisisTexto TO gConfigJsonObjeto.analisisNovedadTextoIA.debugIA
+    SET pProveedorIAResolucionCatalogo TO gConfigJsonObjeto.resolucionCatalogoIA.proveedorIA
+    SET pModeloIAResolucionCatalogo TO gConfigJsonObjeto.resolucionCatalogoIA.modeloIA
+    SET pEndpointIAResolucionCatalogo TO gConfigJsonObjeto.resolucionCatalogoIA.endpointIA
+    SET pCredentialAliasIAResolucionCatalogo TO gConfigJsonObjeto.resolucionCatalogoIA.credentialAliasIA
+    SET pTimeoutIAsegundosResolucionCatalogo TO gConfigJsonObjeto.resolucionCatalogoIA.timeoutIAsegundos
+    SET pDebugIAResolucionCatalogo TO gConfigJsonObjeto.resolucionCatalogoIA.debugIA
+    SET pProveedorIA TO pProveedorIAAnalisisTexto
+    SET pModeloIA TO pModeloIAAnalisisTexto
+    SET pEndpointIA TO pEndpointIAAnalisisTexto
+    SET pCredentialAliasIA TO pCredentialAliasIAAnalisisTexto
+    SET pTimeoutIAsegundos TO pTimeoutIAsegundosAnalisisTexto
+    SET pDebugIA TO pDebugIAAnalisisTexto
     IF IsEmpty(pDirectorioLogs) THEN
         SET gMensajeError TO $'''La configuracion del directorio de logs esta incompleta en config.json'''
         SET gEstadoInicializacion TO $'''ERROR'''
@@ -123,13 +135,20 @@ END
     ELSE
         File.WriteText File: gArchivoLog TextToWrite: $'''OK | URL aplicativo inicializada | %pUrlAppNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     END
-    IF IsEmpty(pProveedorIA) OR IsEmpty(pModeloIA) OR IsEmpty(pEndpointIA) OR IsEmpty(pCredentialAliasIA) THEN
+    IF IsEmpty(pProveedorIAAnalisisTexto) OR IsEmpty(pModeloIAAnalisisTexto) OR IsEmpty(pEndpointIAAnalisisTexto) OR IsEmpty(pCredentialAliasIAAnalisisTexto) THEN
         SET gMensajeError TO $'''La configuracion analisisNovedadTextoIA esta incompleta en config.json'''
         SET gEstadoInicializacion TO $'''ERROR'''
         File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         EXIT FUNCTION
     END
-    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Configuracion IA cargada | Proveedor: %pProveedorIA% | Modelo: %pModeloIA% | Alias credencial: %pCredentialAliasIA% | Timeout: %pTimeoutIAsegundos% | Debug: %pDebugIA%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF IsEmpty(pProveedorIAResolucionCatalogo) OR IsEmpty(pModeloIAResolucionCatalogo) OR IsEmpty(pEndpointIAResolucionCatalogo) OR IsEmpty(pCredentialAliasIAResolucionCatalogo) THEN
+        SET gMensajeError TO $'''La configuracion resolucionCatalogoIA esta incompleta en config.json'''
+        SET gEstadoInicializacion TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Configuracion IA analisis texto cargada | Proveedor: %pProveedorIAAnalisisTexto% | Modelo: %pModeloIAAnalisisTexto% | Alias credencial: %pCredentialAliasIAAnalisisTexto% | Timeout: %pTimeoutIAsegundosAnalisisTexto% | Debug: %pDebugIAAnalisisTexto%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Configuracion IA resolucion catalogo cargada | Proveedor: %pProveedorIAResolucionCatalogo% | Modelo: %pModeloIAResolucionCatalogo% | Alias credencial: %pCredentialAliasIAResolucionCatalogo% | Timeout: %pTimeoutIAsegundosResolucionCatalogo% | Debug: %pDebugIAResolucionCatalogo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
     # Validar y cargar credenciales
     IF pUsaCredencialesSeguras = True THEN
         Scripting.RunPowershellScript.RunScript Script: $'''$TargetName = \"practiko\"

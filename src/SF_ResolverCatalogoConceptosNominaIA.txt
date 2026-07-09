@@ -1,0 +1,245 @@
+# SF_ResolverCatalogoConceptosNominaIA
+# Solicita apoyo IA solo para filas AMBIGUO o NO_ENCONTRADO de gListaResolucionCatalogoNovedadesNomina
+SET gEstadoResolucionCatalogoNominaIA TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalResolucionCatalogoNominaIA TO 0
+SET gHayResolucionCatalogoNominaIA TO False
+SET gTotalIAAmbiguosProcesados TO 0
+SET gTotalIANoEncontradosProcesados TO 0
+SET gTotalFilasCatalogoIADescartadas TO 0
+SET gTotalFilasCatalogoIAErrorFormato TO 0
+Variables.CreateNewList List=> gListaResolucionCatalogoNovedadesNominaIA
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoResolucionCatalogoNominaIA TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio resolucion catalogo conceptos nomina IA | Registros base: %gListaResolucionCatalogoNovedadesNomina.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaResolucionCatalogoNovedadesNomina.Count = 0 THEN
+        SET gEstadoResolucionCatalogoNominaIA TO $'''SIN_DATOS'''
+        SET gMensajeError TO $'''No hay registros base de resolucion de catalogo para procesar con IA'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_DATOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF IsEmpty(pProveedorIAResolucionCatalogo) OR IsEmpty(pModeloIAResolucionCatalogo) OR IsEmpty(pEndpointIAResolucionCatalogo) OR IsEmpty(pCredentialAliasIAResolucionCatalogo) THEN
+        SET gEstadoResolucionCatalogoNominaIA TO $'''ERROR'''
+        SET gMensajeError TO $'''La configuracion resolucionCatalogoIA no esta disponible en memoria; valida SF_Init'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF pProveedorIAResolucionCatalogo <> $'''mistral''' THEN
+        SET gEstadoResolucionCatalogoNominaIA TO $'''ERROR'''
+        SET gMensajeError TO $'''Proveedor IA no soportado en esta version para resolucion de catalogo: %pProveedorIAResolucionCatalogo%'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF gConceptosSistemaEmpresaActual.Count = 0 THEN
+        SET gEstadoResolucionCatalogoNominaIA TO $'''ERROR'''
+        SET gMensajeError TO $'''No hay conceptosSistema cargados en memoria para resolucionCatalogoIA; valida SF_ResolverCatalogoConceptosNomina'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    SET gCatalogoEmpresaPromptIA TO $''''''
+    LOOP FOREACH CurrentConceptoSistemaIAPrompt IN gConceptosSistemaEmpresaActual
+        SET gLineaConceptoSistemaIAPrompt TO $'''%CurrentConceptoSistemaIAPrompt['codigoSistema']% - %CurrentConceptoSistemaIAPrompt['conceptoSistema']%'''
+        IF IsEmpty(gCatalogoEmpresaPromptIA) THEN
+            SET gCatalogoEmpresaPromptIA TO gLineaConceptoSistemaIAPrompt
+        ELSE
+            SET gCatalogoEmpresaPromptIA TO $'''%gCatalogoEmpresaPromptIA% || %gLineaConceptoSistemaIAPrompt%'''
+        END
+    END
+    Scripting.RunPowershellScript.RunScript Script: $'''$TargetName = \"%pCredentialAliasIAResolucionCatalogo%\"
+$CredentialType = 1 # CRED_TYPE_GENERIC
+
+$Code = @\'
+using System;
+using System.Runtime.InteropServices;
+
+public class NativeCreds {
+    [DllImport(\"Advapi32.dll\", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern bool CredReadW(
+        string target,
+        uint type,
+        int reserved,
+        out IntPtr credentialPtr
+    );
+
+    [DllImport(\"Advapi32.dll\", SetLastError = true)]
+    public static extern void CredFree(IntPtr buffer);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct CREDENTIAL {
+        public uint Flags;
+        public uint Type;
+        public string TargetName;
+        public string Comment;
+        public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;
+        public uint CredentialBlobSize;
+        public IntPtr CredentialBlob;
+        public uint Persist;
+        public uint AttributeCount;
+        public IntPtr Attributes;
+        public string TargetAlias;
+        public string UserName;
+    }
+}
+\'@
+
+if (-not (\"NativeCreds\" -as [type])) {
+    Add-Type -TypeDefinition $Code
+}
+
+$credPtr = [IntPtr]::Zero
+
+if ([NativeCreds]::CredReadW($TargetName, $CredentialType, 0, [ref]$credPtr)) {
+    try {
+        $cred = [System.Runtime.InteropServices.Marshal]::PtrToStructure(
+            $credPtr,
+            [Type][NativeCreds+CREDENTIAL]
+        )
+
+        $bytes = New-Object byte[] $cred.CredentialBlobSize
+        [System.Runtime.InteropServices.Marshal]::Copy(
+            $cred.CredentialBlob,
+            $bytes,
+            0,
+            $cred.CredentialBlobSize
+        )
+
+        $password = [System.Text.Encoding]::Unicode.GetString($bytes).TrimEnd([char]0)
+
+        [Console]::WriteLine($cred.UserName)
+        [Console]::WriteLine($password)
+    }
+    finally {
+        [NativeCreds]::CredFree($credPtr)
+    }
+}
+else {
+    $win32Error = [System.Runtime.InteropServices.Marshal]::GetLastWin32Error()
+    [Console]::WriteLine(\"ERROR_CREDREAD_$win32Error\")
+    [Console]::WriteLine(\"ERROR_CREDREAD_$win32Error\")
+}''' ScriptOutput=> gCredentialManagerStringIAResolucionCatalogo
+    Text.SplitText.Split Text: gCredentialManagerStringIAResolucionCatalogo StandardDelimiter: Text.StandardDelimiter.NewLine DelimiterTimes: 1 Result=> gCredencialesIAResolucionCatalogo
+    IF gCredencialesIAResolucionCatalogo.Count < 2 THEN
+        SET gEstadoResolucionCatalogoNominaIA TO $'''ERROR'''
+        SET gMensajeError TO $'''No fue posible leer la credencial IA de resolucion de catalogo desde Credential Manager'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Alias: %pCredentialAliasIAResolucionCatalogo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    SET gUsuarioCredentialIAResolucionCatalogo TO gCredencialesIAResolucionCatalogo[0]
+    SET gApiKeyIAResolucionCatalogo TO gCredencialesIAResolucionCatalogo[1]
+    IF IsEmpty(gApiKeyIAResolucionCatalogo) THEN
+        SET gEstadoResolucionCatalogoNominaIA TO $'''ERROR'''
+        SET gMensajeError TO $'''No fue posible recuperar la API key IA de resolucion de catalogo desde Credential Manager'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Alias: %pCredentialAliasIAResolucionCatalogo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Credencial IA resolucion catalogo cargada | Proveedor: %pProveedorIAResolucionCatalogo% | Alias: %pCredentialAliasIAResolucionCatalogo% | Usuario: %gUsuarioCredentialIAResolucionCatalogo%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    LOOP FOREACH CurrentItem IN gListaResolucionCatalogoNovedadesNomina
+        SET gSeGeneroSalidaResolucionCatalogoIAActual TO False
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesResolucionCatalogoIAActual
+        IF gPartesResolucionCatalogoIAActual.Count < 43 THEN
+            Variables.IncreaseVariable Value: gTotalFilasCatalogoIAErrorFormato IncrementValue: 1
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | Registro base resolucion catalogo con formato invalido para IA | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            SET gEstadoResolucionCatalogoBaseIAActual TO gPartesResolucionCatalogoIAActual[33]
+            IF gEstadoResolucionCatalogoBaseIAActual <> $'''AMBIGUO''' AND gEstadoResolucionCatalogoBaseIAActual <> $'''NO_ENCONTRADO''' THEN
+                Variables.IncreaseVariable Value: gTotalFilasCatalogoIADescartadas IncrementValue: 1
+            ELSE
+                SET gIdEjecucionResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[0]
+                SET gLlaveFilaFuenteResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[1]
+                SET gOrigenAnalisisResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[2]
+                SET gArchivoOrigenResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[3]
+                SET gHojaOrigenResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[4]
+                SET gFilaExcelResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[5]
+                SET gNombreEmpleadoResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[7]
+                SET gConceptoFuenteExcelResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[12]
+                SET gValorConceptoFuenteResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[14]
+                SET gNovedadTextoOriginalResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[15]
+                SET gTextoFragmentoRelacionadoResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[16]
+                SET gTipoSugeridoIAResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[17]
+                SET gMontoMencionadoIAResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[18]
+                SET gDiasMencionadosIAResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[19]
+                SET gBaseResolucionCatalogoIAActual TO gPartesResolucionCatalogoIAActual[30]
+                SET gObservacionResolucionCatalogoBaseIAActual TO gPartesResolucionCatalogoIAActual[41]
+                SET gCandidatosCatalogoBaseIAActual TO gPartesResolucionCatalogoIAActual[40]
+                IF gEstadoResolucionCatalogoBaseIAActual = $'''AMBIGUO''' AND Not(IsEmpty(gCandidatosCatalogoBaseIAActual)) THEN
+                    SET gModoResolucionCatalogoIAActual TO $'''IA_CANDIDATOS'''
+                    Variables.IncreaseVariable Value: gTotalIAAmbiguosProcesados IncrementValue: 1
+                ELSE
+                    SET gModoResolucionCatalogoIAActual TO $'''IA_CATALOGO'''
+                    IF gEstadoResolucionCatalogoBaseIAActual = $'''AMBIGUO''' THEN
+                        Variables.IncreaseVariable Value: gTotalIAAmbiguosProcesados IncrementValue: 1
+                    ELSE
+                        Variables.IncreaseVariable Value: gTotalIANoEncontradosProcesados IncrementValue: 1
+                    END
+                END
+                SET gSystemPromptResolucionCatalogoIA TO $'''Eres un analizador de resolucion de catalogo de conceptos de nomina. Responde exclusivamente un JSON valido. No uses markdown. Tu tarea es sugerir exactamente un concepto del sistema para una fila de novedades de nomina que no pudo resolverse completamente por reglas. Reglas estrictas: 1. Solo puedes sugerir codigos y conceptos presentes en el catalogo entregado. 2. Si recibes una lista cerrada de candidatos, debes escoger solo entre esos candidatos. 3. No inventes codigos, conceptos, equivalencias ni reglas de negocio. 4. Si la evidencia es debil, baja la confianza. 5. requiereValidacionUsuarioIA debe ser true en todos los casos. Debes responder un objeto JSON con exactamente estas llaves: metodoResolucionCatalogoIA, codigoSistemaSugeridoIA, conceptoSistemaSugeridoIA, confianzaResolucionCatalogoIA, requiereValidacionUsuarioIA, observacionResolucionCatalogoIA. Valores permitidos: metodoResolucionCatalogoIA: IA_CANDIDATOS o IA_CATALOGO. confianzaResolucionCatalogoIA: ALTA, MEDIA o BAJA. requiereValidacionUsuarioIA: true. Si no encuentras una sugerencia razonable dentro del catalogo entregado, devuelve codigoSistemaSugeridoIA y conceptoSistemaSugeridoIA vacios, con confianza BAJA y una observacion clara.'''
+                SET gUserPromptResolucionCatalogoIA TO $'''IdEjecucion: %gIdEjecucionResolucionCatalogoIAActual% | LlaveFilaFuente: %gLlaveFilaFuenteResolucionCatalogoIAActual% | OrigenAnalisis: %gOrigenAnalisisResolucionCatalogoIAActual% | ArchivoOrigen: %gArchivoOrigenResolucionCatalogoIAActual% | HojaOrigen: %gHojaOrigenResolucionCatalogoIAActual% | FilaExcel: %gFilaExcelResolucionCatalogoIAActual% | NombreEmpleado: %gNombreEmpleadoResolucionCatalogoIAActual% | ConceptoFuenteExcel: %gConceptoFuenteExcelResolucionCatalogoIAActual% | ValorConceptoFuente: %gValorConceptoFuenteResolucionCatalogoIAActual% | NovedadTextoOriginal: %gNovedadTextoOriginalResolucionCatalogoIAActual% | TextoFragmentoRelacionado: %gTextoFragmentoRelacionadoResolucionCatalogoIAActual% | TipoSugeridoIA: %gTipoSugeridoIAResolucionCatalogoIAActual% | MontoMencionadoIA: %gMontoMencionadoIAResolucionCatalogoIAActual% | DiasMencionadosIA: %gDiasMencionadosIAResolucionCatalogoIAActual% | BaseResolucionCatalogo: %gBaseResolucionCatalogoIAActual% | EstadoResolucionCatalogo: %gEstadoResolucionCatalogoBaseIAActual% | ObservacionResolucionCatalogo: %gObservacionResolucionCatalogoBaseIAActual% | ModoResolucionIA: %gModoResolucionCatalogoIAActual% | CandidatosCatalogo: %gCandidatosCatalogoBaseIAActual% | CatalogoEmpresa: %gCatalogoEmpresaPromptIA%'''
+                SET gRequestBodyResolucionCatalogoIA TO $'''{\"model\":\"%pModeloIAResolucionCatalogo%\",\"response_format\":{\"type\":\"json_object\"},\"temperature\":0,\"max_tokens\":700,\"messages\":[{\"role\":\"system\",\"content\":\"%gSystemPromptResolucionCatalogoIA%\"}, {\"role\":\"user\",\"content\":\"%gUserPromptResolucionCatalogoIA%\"}]}'''
+                Web.InvokeWebService.InvokeWebService Url: pEndpointIAResolucionCatalogo Method: Web.Method.Post Accept: $'''application/json''' ContentType: $'''application/json''' ConnectionTimeout: pTimeoutIAsegundosResolucionCatalogo FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: False UserAgent: $'''Mozilla/5.0 (Windows NT 10.0; Win64; x64)''' Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True RequestBody: gRequestBodyResolucionCatalogoIA CustomHeaders: $'''Authorization: Bearer %gApiKeyIAResolucionCatalogo%''' ResponseHeaders=> gWebServiceResponseHeadersResolucionCatalogoIA Response=> gWebServiceResponseResolucionCatalogoIA StatusCode=> gStatusCodeResolucionCatalogoIA
+                IF gStatusCodeResolucionCatalogoIA < 200 OR gStatusCodeResolucionCatalogoIA > 299 THEN
+                    SET gMetodoResolucionCatalogoIARespuestaActual TO gModoResolucionCatalogoIAActual
+                    SET gCodigoSistemaSugeridoIAActual TO $''''''
+                    SET gConceptoSistemaSugeridoIAActual TO $''''''
+                    SET gConfianzaResolucionCatalogoIAActual TO $'''BAJA'''
+                    SET gRequiereValidacionUsuarioIAActual TO True
+                    SET gObservacionResolucionCatalogoIAActual TO $'''HTTP %gStatusCodeResolucionCatalogoIA%'''
+                ELSE
+                    Variables.ConvertJsonToCustomObject Json: gWebServiceResponseResolucionCatalogoIA CustomObject=> gResponseJsonResolucionCatalogoIA
+                    SET gMessageContentResolucionCatalogoIA TO gResponseJsonResolucionCatalogoIA['choices'][0]['message']['content']
+                    IF IsEmpty(gMessageContentResolucionCatalogoIA) THEN
+                        SET gMetodoResolucionCatalogoIARespuestaActual TO gModoResolucionCatalogoIAActual
+                        SET gCodigoSistemaSugeridoIAActual TO $''''''
+                        SET gConceptoSistemaSugeridoIAActual TO $''''''
+                        SET gConfianzaResolucionCatalogoIAActual TO $'''BAJA'''
+                        SET gRequiereValidacionUsuarioIAActual TO True
+                        SET gObservacionResolucionCatalogoIAActual TO $'''Respuesta vacia de Mistral'''
+                    ELSE
+                        Variables.ConvertJsonToCustomObject Json: gMessageContentResolucionCatalogoIA CustomObject=> gMessageContentJsonResolucionCatalogoIA
+                        SET gMetodoResolucionCatalogoIARespuestaActual TO gMessageContentJsonResolucionCatalogoIA['metodoResolucionCatalogoIA']
+                        IF IsEmpty(gMetodoResolucionCatalogoIARespuestaActual) THEN
+                            SET gMetodoResolucionCatalogoIARespuestaActual TO gModoResolucionCatalogoIAActual
+                        END
+                        SET gCodigoSistemaSugeridoIAActual TO gMessageContentJsonResolucionCatalogoIA['codigoSistemaSugeridoIA']
+                        SET gConceptoSistemaSugeridoIAActual TO gMessageContentJsonResolucionCatalogoIA['conceptoSistemaSugeridoIA']
+                        SET gConfianzaResolucionCatalogoIAActual TO gMessageContentJsonResolucionCatalogoIA['confianzaResolucionCatalogoIA']
+                        IF IsEmpty(gConfianzaResolucionCatalogoIAActual) THEN
+                            SET gConfianzaResolucionCatalogoIAActual TO $'''BAJA'''
+                        END
+                        SET gRequiereValidacionUsuarioIAActual TO gMessageContentJsonResolucionCatalogoIA['requiereValidacionUsuarioIA']
+                        IF IsEmpty(gRequiereValidacionUsuarioIAActual) THEN
+                            SET gRequiereValidacionUsuarioIAActual TO True
+                        END
+                        SET gObservacionResolucionCatalogoIAActual TO gMessageContentJsonResolucionCatalogoIA['observacionResolucionCatalogoIA']
+                    END
+                END
+                SET gResultadoResolucionCatalogoNominaIAActual TO $'''%gPartesResolucionCatalogoIAActual[0]%|%gPartesResolucionCatalogoIAActual[1]%|%gPartesResolucionCatalogoIAActual[2]%|%gPartesResolucionCatalogoIAActual[3]%|%gPartesResolucionCatalogoIAActual[4]%|%gPartesResolucionCatalogoIAActual[5]%|%gPartesResolucionCatalogoIAActual[6]%|%gPartesResolucionCatalogoIAActual[7]%|%gPartesResolucionCatalogoIAActual[8]%|%gPartesResolucionCatalogoIAActual[9]%|%gPartesResolucionCatalogoIAActual[10]%|%gPartesResolucionCatalogoIAActual[11]%|%gPartesResolucionCatalogoIAActual[12]%|%gPartesResolucionCatalogoIAActual[13]%|%gPartesResolucionCatalogoIAActual[14]%|%gPartesResolucionCatalogoIAActual[15]%|%gPartesResolucionCatalogoIAActual[16]%|%gPartesResolucionCatalogoIAActual[17]%|%gPartesResolucionCatalogoIAActual[18]%|%gPartesResolucionCatalogoIAActual[19]%|%gPartesResolucionCatalogoIAActual[20]%|%gPartesResolucionCatalogoIAActual[21]%|%gPartesResolucionCatalogoIAActual[22]%|%gPartesResolucionCatalogoIAActual[23]%|%gPartesResolucionCatalogoIAActual[24]%|%gPartesResolucionCatalogoIAActual[25]%|%gPartesResolucionCatalogoIAActual[26]%|%gPartesResolucionCatalogoIAActual[27]%|%gPartesResolucionCatalogoIAActual[28]%|%gPartesResolucionCatalogoIAActual[29]%|%gPartesResolucionCatalogoIAActual[30]%|%gPartesResolucionCatalogoIAActual[31]%|%gPartesResolucionCatalogoIAActual[32]%|%gPartesResolucionCatalogoIAActual[33]%|%gPartesResolucionCatalogoIAActual[34]%|%gPartesResolucionCatalogoIAActual[35]%|%gPartesResolucionCatalogoIAActual[36]%|%gPartesResolucionCatalogoIAActual[37]%|%gPartesResolucionCatalogoIAActual[38]%|%gPartesResolucionCatalogoIAActual[39]%|%gPartesResolucionCatalogoIAActual[40]%|%gPartesResolucionCatalogoIAActual[41]%|%gMetodoResolucionCatalogoIARespuestaActual%|%gCodigoSistemaSugeridoIAActual%|%gConceptoSistemaSugeridoIAActual%|%gConfianzaResolucionCatalogoIAActual%|%gRequiereValidacionUsuarioIAActual%|%gObservacionResolucionCatalogoIAActual%|__END__'''
+                Variables.AddItemToList Item: gResultadoResolucionCatalogoNominaIAActual List: gListaResolucionCatalogoNovedadesNominaIA
+                Variables.IncreaseVariable Value: gTotalResolucionCatalogoNominaIA IncrementValue: 1
+                SET gSeGeneroSalidaResolucionCatalogoIAActual TO True
+            END
+        END
+    END
+    IF gTotalResolucionCatalogoNominaIA = 0 THEN
+        SET gEstadoResolucionCatalogoNominaIA TO $'''SIN_PENDIENTES'''
+        SET gHayResolucionCatalogoNominaIA TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resolucion catalogo conceptos nomina IA finalizada sin filas pendientes''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoResolucionCatalogoNominaIA TO $'''OK'''
+        SET gHayResolucionCatalogoNominaIA TO True
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen resolucion catalogo conceptos nomina IA | Filas procesadas: %gTotalResolucionCatalogoNominaIA% | Ambiguos: %gTotalIAAmbiguosProcesados% | No encontrados: %gTotalIANoEncontradosProcesados% | Descartadas: %gTotalFilasCatalogoIADescartadas% | Error formato: %gTotalFilasCatalogoIAErrorFormato%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        IF gListaResolucionCatalogoNovedadesNominaIA.Count > 0 THEN
+            File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG resolucion catalogo IA item 0 | [%gListaResolucionCatalogoNovedadesNominaIA[0]%]''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        END
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

@@ -19,7 +19,12 @@ La configuracion de rutas debe distinguir al menos:
 
 ## Ajuste vigente
 
-Aunque el resto de variables operativas aun no se ha migrado por completo a `config.json`, `SF_Init` debe leer desde ya la llave `analisisNovedadTextoIA` para dejar disponibles las variables requeridas por `SF_AnalizarNovedadTextoNomina`.
+Aunque el resto de variables operativas aun no se ha migrado por completo a `config.json`, `SF_Init` debe leer desde ya dos bloques separados de IA:
+
+- `analisisNovedadTextoIA`
+- `resolucionCatalogoIA`
+
+Ambos pueden reutilizar la misma `credentialAliasIA` si se trabaja con la misma API key, pero deben mantener modelos y timeouts independientes por fase.
 
 ## Firma sugerida del subflujo
 
@@ -50,12 +55,57 @@ Aunque el resto de variables operativas aun no se ha migrado por completo a `con
 
 ### Variables IA cargadas en Init
 
-- `pProveedorIA` `Text`
-- `pModeloIA` `Text`
-- `pEndpointIA` `Text`
-- `pCredentialAliasIA` `Text`
-- `pTimeoutIAsegundos` `Number`
-- `pDebugIA` `Boolean`
+#### Analisis de novedad texto
+
+- `pProveedorIAAnalisisTexto` `Text`
+- `pModeloIAAnalisisTexto` `Text`
+- `pEndpointIAAnalisisTexto` `Text`
+- `pCredentialAliasIAAnalisisTexto` `Text`
+- `pTimeoutIAsegundosAnalisisTexto` `Number`
+- `pDebugIAAnalisisTexto` `Boolean`
+
+#### Resolucion de catalogo
+
+- `pProveedorIAResolucionCatalogo` `Text`
+- `pModeloIAResolucionCatalogo` `Text`
+- `pEndpointIAResolucionCatalogo` `Text`
+- `pCredentialAliasIAResolucionCatalogo` `Text`
+- `pTimeoutIAsegundosResolucionCatalogo` `Number`
+- `pDebugIAResolucionCatalogo` `Boolean`
+
+#### Compatibilidad temporal
+
+Mientras `SF_AnalizarNovedadTextoNomina` siga consumiendo nombres antiguos, `SF_Init` puede seguir poblando estas variables como alias de compatibilidad desde el bloque de analisis de texto:
+
+- `pProveedorIA`
+- `pModeloIA`
+- `pEndpointIA`
+- `pCredentialAliasIA`
+- `pTimeoutIAsegundos`
+- `pDebugIA`
+
+## Bloque sugerido en config.json
+
+```json
+{
+  "analisisNovedadTextoIA": {
+    "proveedorIA": "mistral",
+    "modeloIA": "mistral-medium-latest",
+    "endpointIA": "https://api.mistral.ai/v1/chat/completions",
+    "credentialAliasIA": "Aspraco_Mistral_API",
+    "timeoutIAsegundos": 60,
+    "debugIA": false
+  },
+  "resolucionCatalogoIA": {
+    "proveedorIA": "mistral",
+    "modeloIA": "mistral-medium-latest",
+    "endpointIA": "https://api.mistral.ai/v1/chat/completions",
+    "credentialAliasIA": "Aspraco_Mistral_API",
+    "timeoutIAsegundos": 60,
+    "debugIA": false
+  }
+}
+```
 
 ## Flujo literal en PAD
 
