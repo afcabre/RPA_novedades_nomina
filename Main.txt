@@ -29,6 +29,7 @@ IF gEstadoInicializacion = $'''OK''' THEN
                 IF gHayRegistrosFuenteNovedadesNomina = True OR gHayNovedadesTextoAnalizadas = True THEN
                     CALL SF_ConciliarItemsNomina
                     IF gHayConciliacionNovedadesNomina = True THEN
+                        CALL SF_MaterializarRegistrosCalculablesNovedadesNomina
                         CALL SF_EscribirConciliacionNovedadesNominaExcel
                         CALL SF_ResolverCatalogoConceptosNomina
                         IF gHayResolucionCatalogoNovedadesNomina = True THEN
@@ -37,6 +38,7 @@ IF gEstadoInicializacion = $'''OK''' THEN
                             IF gHayResolucionCatalogoNominaIA = True THEN
                                 CALL SF_EnriquecerConciliacionNovedadesNominaConCatalogoIA
                             END
+                            CALL SF_ClasificarRegistrosListosNovedadesNomina
                         END
                     END
                 END

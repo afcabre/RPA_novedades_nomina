@@ -1,0 +1,181 @@
+# SF_ClasificarRegistrosListosNovedadesNomina
+# Clasifica cada registro conciliado y resuelto en dos salidas operativas:
+# LISTO_AUTORREGISTRO o REQUIERE_VALIDACION_USUARIO
+SET gEstadoClasificacionRegistrosListosNovedadesNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalClasificacionRegistrosListosNovedadesNomina TO 0
+SET gHayClasificacionRegistrosListosNovedadesNomina TO False
+SET gTotalRegistrosListosAutorregistroNovedadesNomina TO 0
+SET gTotalRegistrosRequierenValidacionNovedadesNomina TO 0
+SET gHayRegistrosListosAutorregistroNovedadesNomina TO False
+SET gHayRegistrosRequierenValidacionNovedadesNomina TO False
+Variables.CreateNewList List=> gListaClasificacionRegistrosListosNovedadesNomina
+Variables.CreateNewList List=> gListaRegistrosListosAutorregistroNovedadesNomina
+Variables.CreateNewList List=> gListaRegistrosRequierenValidacionNovedadesNomina
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoClasificacionRegistrosListosNovedadesNomina TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio clasificacion registros listos novedades nomina | Registros base: %gListaResolucionCatalogoNovedadesNomina.Count% | Registros IA: %gListaResolucionCatalogoNovedadesNominaIA.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaResolucionCatalogoNovedadesNomina.Count = 0 THEN
+        SET gEstadoClasificacionRegistrosListosNovedadesNomina TO $'''SIN_DATOS'''
+        SET gMensajeError TO $'''No hay registros resueltos de novedades nomina para clasificar'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_DATOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    LOOP FOREACH CurrentItem IN gListaResolucionCatalogoNovedadesNomina
+        Text.SplitText.SplitWithDelimiter Text: CurrentItem CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesClasificacionRegistroNominaActual
+        IF gPartesClasificacionRegistroNominaActual.Count < 43 THEN
+            SET gEstadoClasificacionRegistrosListosNovedadesNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''Se recibio un registro de resolucion de catalogo con formato invalido para clasificacion operativa'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        SET gMarcadorFinClasificacionRegistroNominaActual TO gPartesClasificacionRegistroNominaActual[gPartesClasificacionRegistroNominaActual.Count - 1]
+        IF gMarcadorFinClasificacionRegistroNominaActual <> $'''__END__''' THEN
+            SET gEstadoClasificacionRegistrosListosNovedadesNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''Se recibio un registro de resolucion de catalogo sin marcador final __END__ para clasificacion operativa'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        SET gIdEjecucionClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[0]
+        SET gLlaveRegistroAnalisisClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[1]
+        SET gOrigenAnalisisClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[2]
+        SET gArchivoOrigenClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[3]
+        SET gHojaOrigenClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[4]
+        SET gFilaExcelClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[5]
+        SET gCiudadClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[6]
+        SET gNombreEmpleadoClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[7]
+        SET gCedulaFuenteClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[8]
+        SET gAreaClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[9]
+        SET gSueldoBaseTextoClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[10]
+        SET gAuxExtralegalBaseTextoClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[11]
+        SET gConceptoFuenteExcelClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[12]
+        SET gColumnaOrigenExcelClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[13]
+        SET gValorConceptoFuenteClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[14]
+        SET gNovedadTextoOriginalClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[15]
+        SET gTextoFragmentoRelacionadoClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[16]
+        SET gTipoSugeridoIAClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[17]
+        SET gMontoMencionadoIAClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[18]
+        SET gDiasMencionadosIAClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[19]
+        SET gEstadoConciliacionClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[20]
+        SET gFuenteAutoritativaClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[21]
+        SET gPermiteAutoRegistroClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[22]
+        SET gRequiereCalculoClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[23]
+        SET gMetodoConciliacionClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[24]
+        SET gConfianzaConciliacionClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[25]
+        SET gMotivoRevisionClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[26]
+        SET gBaseResolucionCatalogoClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[30]
+        SET gEstadoResolucionCatalogoFinalClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[33]
+        SET gMetodoResolucionCatalogoFinalClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[34]
+        SET gCodigoSistemaFinalClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[35]
+        SET gConceptoSistemaFinalClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[36]
+        SET gTipoRegistroSistemaFinalClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[37]
+        SET gConfianzaResolucionCatalogoFinalClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[38]
+        SET gRequiereValidacionUsuarioFinalClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[39]
+        SET gObservacionResolucionCatalogoFinalClasificacionRegistroActual TO gPartesClasificacionRegistroNominaActual[41]
+        SET gResolucionIAEncontradaClasificacionRegistroActual TO False
+        IF gListaResolucionCatalogoNovedadesNominaIA.Count > 0 THEN
+            LOOP FOREACH CurrentResolucionIAClasificacionRegistroActual IN gListaResolucionCatalogoNovedadesNominaIA
+                IF gResolucionIAEncontradaClasificacionRegistroActual = False THEN
+                    Text.SplitText.SplitWithDelimiter Text: CurrentResolucionIAClasificacionRegistroActual CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesResolucionIAClasificacionRegistroActual
+                    IF gPartesResolucionIAClasificacionRegistroActual.Count >= 49 THEN
+                        SET gMarcadorFinResolucionIAClasificacionRegistroActual TO gPartesResolucionIAClasificacionRegistroActual[gPartesResolucionIAClasificacionRegistroActual.Count - 1]
+                        IF gMarcadorFinResolucionIAClasificacionRegistroActual = $'''__END__''' THEN
+                            IF gPartesResolucionIAClasificacionRegistroActual[0] = gIdEjecucionClasificacionRegistroActual AND gPartesResolucionIAClasificacionRegistroActual[1] = gLlaveRegistroAnalisisClasificacionRegistroActual AND gPartesResolucionIAClasificacionRegistroActual[2] = gOrigenAnalisisClasificacionRegistroActual THEN
+                                SET gResolucionIAEncontradaClasificacionRegistroActual TO True
+                                SET gMetodoResolucionCatalogoIAClasificacionRegistroActual TO gPartesResolucionIAClasificacionRegistroActual[42]
+                                SET gCodigoSistemaSugeridoIAClasificacionRegistroActual TO gPartesResolucionIAClasificacionRegistroActual[43]
+                                SET gConceptoSistemaSugeridoIAClasificacionRegistroActual TO gPartesResolucionIAClasificacionRegistroActual[44]
+                                SET gConfianzaResolucionCatalogoIAClasificacionRegistroActual TO gPartesResolucionIAClasificacionRegistroActual[45]
+                                SET gRequiereValidacionUsuarioIAClasificacionRegistroActual TO gPartesResolucionIAClasificacionRegistroActual[46]
+                                SET gObservacionResolucionCatalogoIAClasificacionRegistroActual TO gPartesResolucionIAClasificacionRegistroActual[47]
+                                IF Not(IsEmpty(gCodigoSistemaSugeridoIAClasificacionRegistroActual)) OR Not(IsEmpty(gConceptoSistemaSugeridoIAClasificacionRegistroActual)) THEN
+                                    SET gEstadoResolucionCatalogoFinalClasificacionRegistroActual TO $'''SUGERIDO_IA'''
+                                    SET gMetodoResolucionCatalogoFinalClasificacionRegistroActual TO gMetodoResolucionCatalogoIAClasificacionRegistroActual
+                                    SET gCodigoSistemaFinalClasificacionRegistroActual TO gCodigoSistemaSugeridoIAClasificacionRegistroActual
+                                    SET gConceptoSistemaFinalClasificacionRegistroActual TO gConceptoSistemaSugeridoIAClasificacionRegistroActual
+                                    SET gConfianzaResolucionCatalogoFinalClasificacionRegistroActual TO gConfianzaResolucionCatalogoIAClasificacionRegistroActual
+                                    SET gRequiereValidacionUsuarioFinalClasificacionRegistroActual TO gRequiereValidacionUsuarioIAClasificacionRegistroActual
+                                    SET gObservacionResolucionCatalogoFinalClasificacionRegistroActual TO gObservacionResolucionCatalogoIAClasificacionRegistroActual
+                                    SET gTipoRegistroSistemaFinalClasificacionRegistroActual TO $''''''
+                                END
+                            END
+                        END
+                    END
+                END
+            END
+        END
+        IF Not(IsEmpty(gCodigoSistemaFinalClasificacionRegistroActual)) AND gConceptosSistemaEmpresaActual.Count > 0 THEN
+            LOOP FOREACH CurrentConceptoSistemaClasificacionRegistroActual IN gConceptosSistemaEmpresaActual
+                IF CurrentConceptoSistemaClasificacionRegistroActual['codigoSistema'] = gCodigoSistemaFinalClasificacionRegistroActual THEN
+                    SET gTipoRegistroSistemaFinalClasificacionRegistroActual TO CurrentConceptoSistemaClasificacionRegistroActual['tipoRegistro']
+                END
+            END
+        END
+        SET gEstadoClasificacionRegistroActual TO $'''REQUIERE_VALIDACION_USUARIO'''
+        SET gMotivoClasificacionRegistroActual TO $'''Registro requiere validacion por regla conservadora'''
+        IF IsEmpty(gCodigoSistemaFinalClasificacionRegistroActual) OR IsEmpty(gConceptoSistemaFinalClasificacionRegistroActual) THEN
+            SET gEstadoClasificacionRegistroActual TO $'''REQUIERE_VALIDACION_USUARIO'''
+            SET gMotivoClasificacionRegistroActual TO $'''No existe concepto final resuelto para el registro'''
+        ELSE IF gEstadoConciliacionClasificacionRegistroActual = $'''CONFLICTO''' THEN
+            SET gEstadoClasificacionRegistroActual TO $'''REQUIERE_VALIDACION_USUARIO'''
+            SET gMotivoClasificacionRegistroActual TO $'''EstadoConciliacion = CONFLICTO'''
+        ELSE IF gEstadoConciliacionClasificacionRegistroActual = $'''TEXTO_SIN_RESPALDO''' THEN
+            SET gEstadoClasificacionRegistroActual TO $'''REQUIERE_VALIDACION_USUARIO'''
+            SET gMotivoClasificacionRegistroActual TO $'''EstadoConciliacion = TEXTO_SIN_RESPALDO'''
+        ELSE IF gRequiereCalculoClasificacionRegistroActual = $'''True''' THEN
+            SET gEstadoClasificacionRegistroActual TO $'''REQUIERE_VALIDACION_USUARIO'''
+            SET gMotivoClasificacionRegistroActual TO $'''RequiereCalculo = True; la fase de calculo aun no ha materializado el valor final'''
+        ELSE IF gPermiteAutoRegistroClasificacionRegistroActual <> $'''True''' THEN
+            SET gEstadoClasificacionRegistroActual TO $'''REQUIERE_VALIDACION_USUARIO'''
+            SET gMotivoClasificacionRegistroActual TO $'''PermiteAutoRegistro = False'''
+        ELSE IF gRequiereValidacionUsuarioFinalClasificacionRegistroActual = $'''True''' THEN
+            SET gEstadoClasificacionRegistroActual TO $'''REQUIERE_VALIDACION_USUARIO'''
+            SET gMotivoClasificacionRegistroActual TO $'''La resolucion final de catalogo aun requiere validacion de usuario'''
+        ELSE IF gEstadoResolucionCatalogoFinalClasificacionRegistroActual <> $'''RESUELTO''' THEN
+            SET gEstadoClasificacionRegistroActual TO $'''REQUIERE_VALIDACION_USUARIO'''
+            SET gMotivoClasificacionRegistroActual TO $'''EstadoResolucionCatalogoFinal distinto de RESUELTO'''
+        ELSE
+            SET gEstadoClasificacionRegistroActual TO $'''LISTO_AUTORREGISTRO'''
+            SET gMotivoClasificacionRegistroActual TO $'''Registro conciliado, materializado y resuelto por regla sin validaciones pendientes'''
+        END
+        SET gResultadoClasificacionRegistroNovedadesNominaActual TO $'''%gIdEjecucionClasificacionRegistroActual%|%gLlaveRegistroAnalisisClasificacionRegistroActual%|%gOrigenAnalisisClasificacionRegistroActual%|%gArchivoOrigenClasificacionRegistroActual%|%gHojaOrigenClasificacionRegistroActual%|%gFilaExcelClasificacionRegistroActual%|%gCiudadClasificacionRegistroActual%|%gNombreEmpleadoClasificacionRegistroActual%|%gCedulaFuenteClasificacionRegistroActual%|%gAreaClasificacionRegistroActual%|%gSueldoBaseTextoClasificacionRegistroActual%|%gAuxExtralegalBaseTextoClasificacionRegistroActual%|%gConceptoFuenteExcelClasificacionRegistroActual%|%gColumnaOrigenExcelClasificacionRegistroActual%|%gValorConceptoFuenteClasificacionRegistroActual%|%gNovedadTextoOriginalClasificacionRegistroActual%|%gTextoFragmentoRelacionadoClasificacionRegistroActual%|%gTipoSugeridoIAClasificacionRegistroActual%|%gMontoMencionadoIAClasificacionRegistroActual%|%gDiasMencionadosIAClasificacionRegistroActual%|%gEstadoConciliacionClasificacionRegistroActual%|%gFuenteAutoritativaClasificacionRegistroActual%|%gPermiteAutoRegistroClasificacionRegistroActual%|%gRequiereCalculoClasificacionRegistroActual%|%gMetodoConciliacionClasificacionRegistroActual%|%gConfianzaConciliacionClasificacionRegistroActual%|%gMotivoRevisionClasificacionRegistroActual%|%gBaseResolucionCatalogoClasificacionRegistroActual%|%gEstadoResolucionCatalogoFinalClasificacionRegistroActual%|%gMetodoResolucionCatalogoFinalClasificacionRegistroActual%|%gCodigoSistemaFinalClasificacionRegistroActual%|%gConceptoSistemaFinalClasificacionRegistroActual%|%gTipoRegistroSistemaFinalClasificacionRegistroActual%|%gConfianzaResolucionCatalogoFinalClasificacionRegistroActual%|%gRequiereValidacionUsuarioFinalClasificacionRegistroActual%|%gObservacionResolucionCatalogoFinalClasificacionRegistroActual%|%gEstadoClasificacionRegistroActual%|%gMotivoClasificacionRegistroActual%|__END__'''
+        Variables.AddItemToList Item: gResultadoClasificacionRegistroNovedadesNominaActual List: gListaClasificacionRegistrosListosNovedadesNomina
+        Variables.IncreaseVariable Value: gTotalClasificacionRegistrosListosNovedadesNomina IncrementValue: 1
+        IF gEstadoClasificacionRegistroActual = $'''LISTO_AUTORREGISTRO''' THEN
+            Variables.AddItemToList Item: gResultadoClasificacionRegistroNovedadesNominaActual List: gListaRegistrosListosAutorregistroNovedadesNomina
+            Variables.IncreaseVariable Value: gTotalRegistrosListosAutorregistroNovedadesNomina IncrementValue: 1
+        ELSE
+            Variables.AddItemToList Item: gResultadoClasificacionRegistroNovedadesNominaActual List: gListaRegistrosRequierenValidacionNovedadesNomina
+            Variables.IncreaseVariable Value: gTotalRegistrosRequierenValidacionNovedadesNomina IncrementValue: 1
+        END
+    END
+    IF gTotalClasificacionRegistrosListosNovedadesNomina = 0 THEN
+        SET gEstadoClasificacionRegistrosListosNovedadesNomina TO $'''SIN_DATOS'''
+        SET gHayClasificacionRegistrosListosNovedadesNomina TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Clasificacion registros listos novedades nomina finalizada sin resultados''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoClasificacionRegistrosListosNovedadesNomina TO $'''OK'''
+        SET gHayClasificacionRegistrosListosNovedadesNomina TO True
+        IF gTotalRegistrosListosAutorregistroNovedadesNomina > 0 THEN
+            SET gHayRegistrosListosAutorregistroNovedadesNomina TO True
+        END
+        IF gTotalRegistrosRequierenValidacionNovedadesNomina > 0 THEN
+            SET gHayRegistrosRequierenValidacionNovedadesNomina TO True
+        END
+        File.WriteText File: gArchivoLog TextToWrite: $'''Resumen clasificacion registros listos novedades nomina | Total: %gTotalClasificacionRegistrosListosNovedadesNomina% | Listos autorregistro: %gTotalRegistrosListosAutorregistroNovedadesNomina% | Requieren validacion usuario: %gTotalRegistrosRequierenValidacionNovedadesNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        IF gListaClasificacionRegistrosListosNovedadesNomina.Count > 0 THEN
+            DISABLE File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG clasificacion registros nomina item 0 | [%gListaClasificacionRegistrosListosNovedadesNomina[0]%]''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        END
+    END
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END

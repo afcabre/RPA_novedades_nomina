@@ -1,0 +1,148 @@
+# SF_MaterializarRegistrosCalculablesNovedadesNomina
+# Materializa en V1 solo registros DERIVADO_CALCULABLE de tipo INCAPACIDAD
+# usando la formula SueldoBaseTexto / 30 * DiasMencionadosIA
+SET gEstadoMaterializacionRegistrosCalculablesNovedadesNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControlado TO False
+SET gTotalRegistrosCalculablesEvaluadosNovedadesNomina TO 0
+SET gTotalRegistrosCalculablesMaterializadosNovedadesNomina TO 0
+SET gTotalRegistrosCalculablesSinMaterializarNovedadesNomina TO 0
+SET gHayRegistrosCalculablesMaterializadosNovedadesNomina TO False
+Variables.CreateNewList List=> gListaConciliacionNovedadesNominaMaterializadaTmp
+BLOCK 
+ON BLOCK ERROR
+    SET gEstadoMaterializacionRegistrosCalculablesNovedadesNomina TO $'''ERROR'''
+    SET gEsErrorControlado TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio materializacion registros calculables novedades nomina | Registros conciliados: %gListaConciliacionNovedadesNomina.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gListaConciliacionNovedadesNomina.Count = 0 THEN
+        SET gEstadoMaterializacionRegistrosCalculablesNovedadesNomina TO $'''SIN_DATOS'''
+        SET gMensajeError TO $'''No hay registros conciliados para evaluar materializacion de calculos'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''SIN_DATOS | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    LOOP FOREACH CurrentItem IN gListaConciliacionNovedadesNomina
+        Scripting.RunPowershellScript.RunScript Script: $'''$registro = @"
+%CurrentItem%
+"@
+
+function Normalizar-Numero([string]$valor) {
+    if ($null -eq $valor) {
+        return ""
+    }
+
+    $limpio = $valor.Replace([char]160, " ").Trim()
+    $limpio = $limpio.Replace(".", "").Replace(",", "").Replace(" ", "")
+    return $limpio
+}
+
+$partes = $registro -split '\|'
+
+if ($partes.Count -lt 31) {
+    [Console]::WriteLine("ERROR@@@FORMATO_INVALIDO@@@")
+    return
+}
+
+$marcadorFin = $partes[$partes.Count - 1]
+if ($marcadorFin -ne "__END__") {
+    [Console]::WriteLine("ERROR@@@SIN_END@@@")
+    return
+}
+
+$estadoConciliacion = $partes[20]
+$tipoSugeridoIA = $partes[17]
+$sueldoBaseTexto = $partes[10]
+$diasMencionados = $partes[19]
+$filaExcel = $partes[5]
+$nombreEmpleado = $partes[7]
+
+if ($estadoConciliacion -ne "DERIVADO_CALCULABLE" -or $tipoSugeridoIA -ne "INCAPACIDAD") {
+    [Console]::WriteLine("NO_APLICA@@@$registro@@@")
+    return
+}
+
+$sueldoNormalizado = Normalizar-Numero $sueldoBaseTexto
+$diasNormalizado = Normalizar-Numero $diasMencionados
+
+if ([string]::IsNullOrWhiteSpace($sueldoNormalizado) -or [string]::IsNullOrWhiteSpace($diasNormalizado)) {
+    [Console]::WriteLine("NO_MATERIALIZADO@@@$registro@@@No fue posible normalizar sueldo o dias para incapacidad")
+    return
+}
+
+[decimal]$sueldoBase = 0
+[decimal]$dias = 0
+
+if (-not [decimal]::TryParse($sueldoNormalizado, [ref]$sueldoBase)) {
+    [Console]::WriteLine("NO_MATERIALIZADO@@@$registro@@@No fue posible convertir SueldoBaseTexto a numero")
+    return
+}
+
+if (-not [decimal]::TryParse($diasNormalizado, [ref]$dias)) {
+    [Console]::WriteLine("NO_MATERIALIZADO@@@$registro@@@No fue posible convertir DiasMencionadosIA a numero")
+    return
+}
+
+if ($dias -le 0 -or $sueldoBase -le 0) {
+    [Console]::WriteLine("NO_MATERIALIZADO@@@$registro@@@Sueldo o dias no validos para materializar incapacidad")
+    return
+}
+
+$valorCalculado = [math]::Round(($sueldoBase / 30) * $dias, 0, [System.MidpointRounding]::AwayFromZero)
+
+$partes[14] = $valorCalculado.ToString()
+$partes[20] = "CONCILIADO"
+$partes[21] = "CALCULO"
+$partes[22] = "True"
+$partes[23] = "False"
+$partes[24] = "REGLA_CALCULO"
+$partes[25] = "ALTA"
+$partes[26] = "Valor materializado por regla de incapacidad: SueldoBaseTexto / 30 * DiasMencionadosIA"
+
+$nuevoRegistro = ($partes[0..29] -join '|') + '|__END__'
+[Console]::WriteLine("MATERIALIZADO@@@$nuevoRegistro@@@Fila $filaExcel | $nombreEmpleado | Valor calculado: $valorCalculado")
+''' ScriptOutput=> gResultadoMaterializacionRegistroCalculableActual
+        Text.SplitText.SplitWithDelimiter Text: gResultadoMaterializacionRegistroCalculableActual CustomDelimiter: $'''@@@''' IsRegEx: False Result=> gPartesMaterializacionRegistroCalculableActual
+        IF gPartesMaterializacionRegistroCalculableActual.Count < 2 THEN
+            SET gEstadoMaterializacionRegistrosCalculablesNovedadesNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''La salida de materializacion de calculos no tiene el formato esperado'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Salida: %gResultadoMaterializacionRegistroCalculableActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        SET gEstadoMaterializacionRegistroCalculableActual TO gPartesMaterializacionRegistroCalculableActual[0]
+        SET gRegistroMaterializadoRegistroCalculableActual TO gPartesMaterializacionRegistroCalculableActual[1]
+        SET gDetalleMaterializacionRegistroCalculableActual TO $''''''
+        IF gPartesMaterializacionRegistroCalculableActual.Count > 2 THEN
+            SET gDetalleMaterializacionRegistroCalculableActual TO gPartesMaterializacionRegistroCalculableActual[2]
+        END
+        IF gEstadoMaterializacionRegistroCalculableActual = $'''ERROR''' THEN
+            SET gEstadoMaterializacionRegistrosCalculablesNovedadesNomina TO $'''ERROR'''
+            SET gMensajeError TO $'''Se produjo un error interno materializando un registro calculable'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Detalle: %gDetalleMaterializacionRegistroCalculableActual% | Registro: %CurrentItem%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        Variables.AddItemToList Item: gRegistroMaterializadoRegistroCalculableActual List: gListaConciliacionNovedadesNominaMaterializadaTmp
+        IF gEstadoMaterializacionRegistroCalculableActual = $'''MATERIALIZADO''' THEN
+            Variables.IncreaseVariable Value: gTotalRegistrosCalculablesEvaluadosNovedadesNomina IncrementValue: 1
+            Variables.IncreaseVariable Value: gTotalRegistrosCalculablesMaterializadosNovedadesNomina IncrementValue: 1
+            File.WriteText File: gArchivoLog TextToWrite: $'''OK | Registro calculable materializado | %gDetalleMaterializacionRegistroCalculableActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE IF gEstadoMaterializacionRegistroCalculableActual = $'''NO_MATERIALIZADO''' THEN
+            Variables.IncreaseVariable Value: gTotalRegistrosCalculablesEvaluadosNovedadesNomina IncrementValue: 1
+            Variables.IncreaseVariable Value: gTotalRegistrosCalculablesSinMaterializarNovedadesNomina IncrementValue: 1
+            File.WriteText File: gArchivoLog TextToWrite: $'''REQUIERE_VALIDACION | Registro calculable no materializado | %gDetalleMaterializacionRegistroCalculableActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        END
+    END
+    SET gListaConciliacionNovedadesNomina TO gListaConciliacionNovedadesNominaMaterializadaTmp
+    SET gTotalConciliacionNovedadesNomina TO gListaConciliacionNovedadesNomina.Count
+    IF gTotalRegistrosCalculablesMaterializadosNovedadesNomina > 0 THEN
+        SET gHayRegistrosCalculablesMaterializadosNovedadesNomina TO True
+    END
+    SET gEstadoMaterializacionRegistrosCalculablesNovedadesNomina TO $'''OK'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Resumen materializacion registros calculables novedades nomina | Evaluados: %gTotalRegistrosCalculablesEvaluadosNovedadesNomina% | Materializados: %gTotalRegistrosCalculablesMaterializadosNovedadesNomina% | Sin materializar: %gTotalRegistrosCalculablesSinMaterializarNovedadesNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+END
+IF $'''gEsErrorControlado''' = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControlado TO False
+END
