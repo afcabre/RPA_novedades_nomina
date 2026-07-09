@@ -1,0 +1,587 @@
+{
+  "version": "1.0",
+  "catalogosNomina": [
+    {
+      "empresaId": "901164939",
+      "empresaNombre": "MACOM RENTAL SAS",
+      "activo": true,
+      "origen": "Catalogo de Conceptos_simlpe.xlsx",
+      "conceptosSistema": [
+        {
+          "codigoSistema": "100",
+          "conceptoSistema": "PRESTAMOS EMPRESA",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "101",
+          "conceptoSistema": "SUELDOS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "102",
+          "conceptoSistema": "H.E.D",
+          "descripcionOperativa": "Horas extra diurnas",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "104",
+          "conceptoSistema": "PRIMA DE SERVICIOS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "105",
+          "conceptoSistema": "CESANTIAS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "106",
+          "conceptoSistema": "INTERESES SOBRE CESANTIAS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "107",
+          "conceptoSistema": "VACACIONES",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "108",
+          "conceptoSistema": "AUXILIO DE TRANSPORTE",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "109",
+          "conceptoSistema": "APORTES A SALUD EMPLEADO",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "110",
+          "conceptoSistema": "APORTES PENSION EMPLEADO",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "111",
+          "conceptoSistema": "APORTES SALUD EMPRESA",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "112",
+          "conceptoSistema": "APORTES PENSION EMPRESA",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "113",
+          "conceptoSistema": "APORTES ICBF",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "114",
+          "conceptoSistema": "APORTES CAJA DE COMPENSACION",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "115",
+          "conceptoSistema": "APORTES SENA",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "116",
+          "conceptoSistema": "APORTES FSP",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "117",
+          "conceptoSistema": "SALARIO INTEGRAL",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "118",
+          "conceptoSistema": "COMISIONES",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "120",
+          "conceptoSistema": "RETEFUENTE SALARIOS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "121",
+          "conceptoSistema": "APORTES ARP",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "122",
+          "conceptoSistema": "H.E.N",
+          "descripcionOperativa": "Horas extra nocturnas",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "130",
+          "conceptoSistema": "BONIFICACION HABITUAL",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "131",
+          "conceptoSistema": "AUXILIOS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "153",
+          "conceptoSistema": "RECARGO NOCTURNO",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "155",
+          "conceptoSistema": "H.E.F.D",
+          "descripcionOperativa": "Horas extra fin de semana",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "156",
+          "conceptoSistema": "H.E.F.N",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "157",
+          "conceptoSistema": "RECARGO NOCTURNO F",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "158",
+          "conceptoSistema": "PAGO PRIMA SEMESTRAL",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "159",
+          "conceptoSistema": "INCAPACIDAD",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "160",
+          "conceptoSistema": "RETROACTIVO PRIMA",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "161",
+          "conceptoSistema": "INTERESES SOBRE CESANTIAS P",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "162",
+          "conceptoSistema": "RETROACTIVO",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "165",
+          "conceptoSistema": "DESCUENTOS PRESTAMOS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "176",
+          "conceptoSistema": "ANTICIPOS DE NOMINA",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "229",
+          "conceptoSistema": "H. OPERAD.",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "230",
+          "conceptoSistema": "AUXI EXTRA LEG DE TRANSPORTE",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "304",
+          "conceptoSistema": "VACACIONES DISFRUTADAS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "323",
+          "conceptoSistema": "REINTEGRO",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "348",
+          "conceptoSistema": "CESANTIAS LQ",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "349",
+          "conceptoSistema": "VACACIONES LQ",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "350",
+          "conceptoSistema": "PAGO NO SALAR.BONO.SODEXO",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "351",
+          "conceptoSistema": "PAGADO CON BONO SODEXO",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "354",
+          "conceptoSistema": "BONO NO SALARIAL",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "355",
+          "conceptoSistema": "PAGO ANTICIPADO NOMINA",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "356",
+          "conceptoSistema": "CESANTIAS CONSOLIDADAS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "357",
+          "conceptoSistema": "INT. CESANTIAS CONSOLIDADAS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "358",
+          "conceptoSistema": "VACACIONES CONSOLIDADAS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "359",
+          "conceptoSistema": "CESANT E INT. CESANT Y VACACIONES POR PAGAR",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "360",
+          "conceptoSistema": "INDEMNIZACIÓN LABORAL",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "361",
+          "conceptoSistema": "LICENCIAS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "362",
+          "conceptoSistema": "DTO SEGURO EXE.",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "363",
+          "conceptoSistema": "ANTICIPO OTROS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "364",
+          "conceptoSistema": "GASTOS DE REPRESENTACION",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "365",
+          "conceptoSistema": "VIATICOS NO SALARIALES",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "366",
+          "conceptoSistema": "TRANSPORTE VIATICOS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "367",
+          "conceptoSistema": "VACACIONES CONSOLIDADAS NE",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "373",
+          "conceptoSistema": "DOTACION",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "375",
+          "conceptoSistema": "BONO RIFA NO SALARIAL",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "376",
+          "conceptoSistema": "DESCUENTO BONOS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "377",
+          "conceptoSistema": "DESCUENTO PRIMA",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "384",
+          "conceptoSistema": "PLANILLAS 2020",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "399",
+          "conceptoSistema": "VIATICOS ALOJAMIENTO",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "405",
+          "conceptoSistema": "ANTICIPO PRIMA",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "406",
+          "conceptoSistema": "INT. CESANTIAS PAGADOS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        },
+        {
+          "codigoSistema": "409",
+          "conceptoSistema": "DIAS COMPENSATORIOS",
+          "descripcionOperativa": "",
+          "tipoRegistro": "",
+          "activo": true,
+          "observaciones": "Pendiente mapear contra concepto fuente del Excel de novedades"
+        }
+      ],
+      "asociacionesFuenteExcel": [
+        {
+          "conceptoFuenteExcel": "AUX. TRASLADO CIUDAD/ AUX. RODAMIENTO 01 ENE/24",
+          "conceptoFuenteNormalizado": "auxilio traslado ciudad",
+          "codigosSistemaCandidato": ["354"],
+          "activo": true,
+          "observaciones": "Asociacion directa conocida"
+        },
+        {
+          "conceptoFuenteExcel": "HOSPEDAJE",
+          "conceptoFuenteNormalizado": "hospedaje",
+          "codigosSistemaCandidato": ["399"],
+          "activo": true,
+          "observaciones": "Asociacion directa conocida"
+        },
+        {
+          "conceptoFuenteExcel": "GASTOS REPRESENTACION",
+          "conceptoFuenteNormalizado": "gastos representacion",
+          "codigosSistemaCandidato": ["364"],
+          "activo": true,
+          "observaciones": "Asociacion directa conocida"
+        },
+        {
+          "conceptoFuenteExcel": "TRANSPORTE",
+          "conceptoFuenteNormalizado": "transporte",
+          "codigosSistemaCandidato": ["366"],
+          "activo": true,
+          "observaciones": "Asociacion directa conocida"
+        },
+        {
+          "conceptoFuenteExcel": "VIATICOS NO SALARIALES",
+          "conceptoFuenteNormalizado": "viaticos no salariales",
+          "codigosSistemaCandidato": ["365"],
+          "activo": true,
+          "observaciones": "Asociacion directa conocida"
+        }
+      ],
+      "asociacionesTipoEvento": [
+        {
+          "tipoEvento": "INCAPACIDAD",
+          "tipoEventoNormalizado": "incapacidad",
+          "codigosSistemaCandidato": ["159"],
+          "activo": true,
+          "observaciones": "Asociacion base para incapacidad"
+        },
+        {
+          "tipoEvento": "COMISION",
+          "tipoEventoNormalizado": "comision",
+          "codigosSistemaCandidato": ["118"],
+          "activo": true,
+          "observaciones": "Asociacion base para incapacidad"
+        }
+      ]
+    }
+  ],
+  "actualizadoEn": "2026-07-08"
+}
