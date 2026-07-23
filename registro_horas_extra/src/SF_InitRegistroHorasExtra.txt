@@ -1,0 +1,235 @@
+# SF_InitRegistroHorasExtra
+# Inicializa el frente de prueba de registro UI para horas extra
+DateTime.GetCurrentDateTime.Local DateTimeFormat: DateTime.DateTimeFormat.DateAndTime CurrentDateTime=> gFechaHoraInicioRegistroHorasExtra
+SET gEstadoInicializacionRegistroHorasExtra TO $'''INICIANDO'''
+SET gEstadoContextoRegistroHorasExtra TO $'''NO_EJECUTADO'''
+SET gEstadoTomaRegistroPendienteHorasExtra TO $'''NO_EJECUTADO'''
+SET gEstadoPreparacionPayloadRegistroHorasExtra TO $'''NO_EJECUTADO'''
+SET gEstadoRegistroHorasExtra TO $'''NO_EJECUTADO'''
+SET gEstadoRegistroNovedadHorasExtra TO $'''NO_EJECUTADO'''
+SET gEstadoRegistroDetalleHorasExtra TO $'''NO_EJECUTADO'''
+SET gEstadoConfirmacionRegistroHorasExtra TO $'''NO_EJECUTADO'''
+SET gEstadoActualizacionExcelRegistroHorasExtra TO $'''NO_EJECUTADO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControladoRegistroHorasExtra TO False
+SET gSesionAppAbiertaRegistroHorasExtra TO False
+SET gPantallaRegistroHorasExtraDisponible TO False
+SET gPantallaDetalleHorasExtraDisponible TO False
+SET gHayRegistroPendienteHorasExtra TO False
+SET gExcelRegistroHorasExtraAbierto TO False
+SET gFilaSiguienteBusquedaRegistroHorasExtra TO 0
+SET gFilaBusquedaRegistroHorasExtraActual TO 0
+SET gResultadoRegistroHorasExtraVisible TO $''''''
+SET gObservacionResultadoRegistroHorasExtra TO $''''''
+SET gResultadoRegistroNovedadHorasExtraVisible TO $''''''
+SET gObservacionRegistroNovedadHorasExtra TO $''''''
+SET gResultadoRegistroDetalleHorasExtraVisible TO $''''''
+SET gObservacionRegistroDetalleHorasExtra TO $''''''
+SET gRegistroNovedadHorasExtraIntentado TO False
+SET gRegistroDetalleHorasExtraIntentado TO False
+SET gIdRegistroHorasExtraActual TO $''''''
+SET gIdEmpleadoRegistroHorasExtraActual TO $''''''
+SET gNombreEmpleadoRegistroHorasExtraActual TO $''''''
+SET gFechaLaboradaRegistroHorasExtraActual TO $''''''
+SET gOrigenHorasExtraActual TO $''''''
+SET gTipoNovedadPadreHorasExtraActual TO $''''''
+SET gConceptoHorasExtraActual TO $''''''
+SET gHoraOrdinariaRegistroHorasExtraActual TO $''''''
+SET gCantidadHorasConceptoRegistroHorasExtraActual TO $''''''
+SET gHorasExtrasDiurnasRegistroHorasExtraActual TO $''''''
+SET gFechaUIRegistroHorasExtraActual TO $''''''
+SET gFechaInicioUIRegistroHorasExtraActual TO $''''''
+SET gFechaFinUIRegistroHorasExtraActual TO $''''''
+SET gHoraBaseUI24RegistroHorasExtraActual TO $''''''
+SET gHoraInicioUI24RegistroHorasExtraActual TO $''''''
+SET gHoraInicioHHRegistroHorasExtraActual TO $''''''
+SET gHoraInicioMMRegistroHorasExtraActual TO $''''''
+SET gMinutosExtrasRegistroHorasExtraActual TO $''''''
+SET gHoraSalidaUI24RegistroHorasExtraActual TO $''''''
+SET gHoraFinUI24RegistroHorasExtraActual TO $''''''
+SET gHoraFinHHRegistroHorasExtraActual TO $''''''
+SET gHoraFinMMRegistroHorasExtraActual TO $''''''
+SET gHoraSalidaHHRegistroHorasExtraActual TO $''''''
+SET gHoraSalidaMMRegistroHorasExtraActual TO $''''''
+SET gDetalleHorasExtraActualTexto TO $''''''
+SET gTotalDetallesHorasExtraEmpleadoActual TO 0
+SET gIndiceDetalleHorasExtraActual TO 0
+SET gFilaInicioBloqueHorasExtraActual TO 0
+SET gFilaFinBloqueHorasExtraActual TO 0
+SET gAccionSiguienteDetalleHorasExtraActual TO $''''''
+Variables.CreateNewList List=> gListaDetallesHorasExtraEmpleadoActual
+Variables.CreateNewList List=> gListaPendientesHorasExtraGlobal
+Text.ConvertDateTimeToText.FromCustomDateTime DateTime: gFechaHoraInicioRegistroHorasExtra CustomFormat: $'''yyyyMMdd_HHmmss''' Result=> gIdEjecucionRegistroHorasExtraTmp
+SET gIdEjecucionRegistroHorasExtra TO $'''HEX_%gIdEjecucionRegistroHorasExtraTmp%'''
+SET pRutaConfigJson TO $'''C:\\Dev\\Aspraco\\config\\config.json'''
+SET pRutaArchivoRegistroHorasExtra TO $''''''
+SET gNombreHojaRegistroHorasExtra TO $'''Cesar Gomez'''
+SET pFilaInicialLecturaRegistroHorasExtra TO 3
+SET pColumnaFuncionarioRegistroHorasExtra TO $'''A'''
+SET pColumnaFechaRegistroHorasExtra TO $'''B'''
+SET pColumnaMantHoraOrdinariaRegistroHorasExtra TO $'''J'''
+SET pColumnaMantHorasExtrasDiurnaRegistroHorasExtra TO $'''K'''
+SET pColumnaMantHorasExtrasNocturnaRegistroHorasExtra TO $'''L'''
+SET pColumnaMantRecargoNocturnoRegistroHorasExtra TO $'''M'''
+SET pColumnaMantHorasExtrasFestivasDiurnaRegistroHorasExtra TO $'''N'''
+SET pColumnaMantHorasExtrasFestivasNocturnaRegistroHorasExtra TO $'''O'''
+SET pColumnaMantRecargoNocturnoFestivoRegistroHorasExtra TO $'''P'''
+SET pColumnaOperHoraOrdinariaRegistroHorasExtra TO $'''R'''
+SET pColumnaOperHorasExtrasDiurnaRegistroHorasExtra TO $'''S'''
+SET pColumnaOperHorasExtrasNocturnaRegistroHorasExtra TO $'''T'''
+SET pColumnaOperRecargoNocturnoRegistroHorasExtra TO $'''U'''
+SET pColumnaOperHorasExtrasFestivasDiurnaRegistroHorasExtra TO $'''V'''
+SET pColumnaOperHorasExtrasFestivasNocturnaRegistroHorasExtra TO $'''W'''
+SET pColumnaOperRecargoNocturnoFestivoRegistroHorasExtra TO $'''X'''
+SET pTipoNovedadHEDRegistroHorasExtra TO $'''H.E.D'''
+SET pTipoNovedadHENRegistroHorasExtra TO $'''H.E.N'''
+SET pTipoNovedadHEFDRegistroHorasExtra TO $'''H.E.F.D'''
+SET pTipoNovedadHEFNRegistroHorasExtra TO $'''H.E.F.N'''
+SET pTipoNovedadOperadorRegistroHorasExtra TO $'''H. OPERAD.'''
+SET pColumnaHoraOrdinariaRegistroHorasExtra TO pColumnaMantHoraOrdinariaRegistroHorasExtra
+SET pColumnaHorasExtrasDiurnasRegistroHorasExtra TO pColumnaMantHorasExtrasDiurnaRegistroHorasExtra
+SET gFilaSiguienteBusquedaRegistroHorasExtra TO pFilaInicialLecturaRegistroHorasExtra
+SET gFilaBusquedaRegistroHorasExtraActual TO pFilaInicialLecturaRegistroHorasExtra
+SET pUsaCredencialesSeguras TO True
+SET pCredentialAliasHorasExtra TO $'''practiko'''
+SET pIdEmpresaRegistroHorasExtra TO $''''''
+SET pNombreEmpresaRegistroHorasExtra TO $''''''
+SET pIdEmpresaNomina TO $''''''
+SET pNombreEmpresaNomina TO $''''''
+SET pModoPruebaControlFechaHorasExtra TO $'''TextoDirecto'''
+SET pModoPruebaControlHoraHorasExtra TO $'''Segmentado'''
+SET pIdEmpleadoQuemadoRegistroHorasExtra TO $'''7937156'''
+SET pNombreEmpleadoQuemadoRegistroHorasExtra TO $'''Cesar Gomez'''
+SET pObservacionRegistroHorasExtraQuemada TO $'''Prueba PAD control fecha y hora'''
+BLOCK Error_InitRegistroHorasExtra
+ON BLOCK ERROR
+    SET gEstadoInicializacionRegistroHorasExtra TO $'''ERROR'''
+    SET gEsErrorControladoRegistroHorasExtra TO True
+    THROW ERROR
+END
+    IF (File.IfFile.DoesNotExist File: pRutaConfigJson) THEN
+        SET gMensajeError TO $'''No se encontro config.json para inicializar el flujo de registro horas extra'''
+        SET gEstadoInicializacionRegistroHorasExtra TO $'''ERROR'''
+        EXIT FUNCTION
+    END
+    File.ReadTextFromFile.ReadText File: pRutaConfigJson Encoding: File.TextFileEncoding.UTF8 Content=> gConfigJsonTextoRegistroHorasExtra
+    Variables.ConvertJsonToCustomObject Json: gConfigJsonTextoRegistroHorasExtra CustomObject=> gConfigJsonObjetoRegistroHorasExtra
+    SET pUrlAppRegistroHorasExtra TO gConfigJsonObjetoRegistroHorasExtra.appNomina.url
+    SET pIdEmpresaRegistroHorasExtra TO gConfigJsonObjetoRegistroHorasExtra.empresaNomina.idEmpresa
+    SET pNombreEmpresaRegistroHorasExtra TO gConfigJsonObjetoRegistroHorasExtra.empresaNomina.nombreEmpresa
+    SET pIdEmpresaNomina TO pIdEmpresaRegistroHorasExtra
+    SET pNombreEmpresaNomina TO pNombreEmpresaRegistroHorasExtra
+    SET pDirectorioEntrada TO gConfigJsonObjetoRegistroHorasExtra.rutas.directorioEntrada
+    SET pDirectorioLogs TO gConfigJsonObjetoRegistroHorasExtra.rutas.directorioLogs
+    SET pDirectorioSalidas TO gConfigJsonObjetoRegistroHorasExtra.rutas.directorioSalidas
+    SET pDirectorioRegistroHorasExtra TO pDirectorioEntrada
+    IF IsEmpty(pDirectorioEntrada) THEN
+        SET gMensajeError TO $'''La configuracion del directorio de entrada esta incompleta en config.json'''
+        SET gEstadoInicializacionRegistroHorasExtra TO $'''ERROR'''
+        EXIT FUNCTION
+    END
+    IF IsEmpty(pDirectorioLogs) THEN
+        SET gMensajeError TO $'''La configuracion del directorio de logs esta incompleta en config.json'''
+        SET gEstadoInicializacionRegistroHorasExtra TO $'''ERROR'''
+        EXIT FUNCTION
+    END
+    IF (Folder.IfFolderExists.DoesNotExist Path: pDirectorioLogs) THEN
+        Folder.Create FolderPath: pDirectorioSalidas FolderName: $'''logs''' Folder=> gWorkingDirectoryRegistroHorasExtra
+    END
+    IF (Folder.IfFolderExists.DoesNotExist Path: pDirectorioRegistroHorasExtra) THEN
+        SET gMensajeError TO $'''No se encontro la bandeja de trabajo configurada para horas extra'''
+        SET gEstadoInicializacionRegistroHorasExtra TO $'''ERROR'''
+        EXIT FUNCTION
+    END
+    SET gArchivoLog TO $'''%pDirectorioLogs%\\Log_%gIdEjecucionRegistroHorasExtra%.txt'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Inicio ejecucion | Proceso: Registro Horas Extra | Id: %gIdEjecucionRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''Fecha inicio: %gFechaHoraInicioRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF IsEmpty(pUrlAppRegistroHorasExtra) THEN
+        SET gMensajeError TO $'''No se definio la URL del aplicativo para el flujo de horas extra'''
+        SET gEstadoInicializacionRegistroHorasExtra TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF IsEmpty(pIdEmpresaRegistroHorasExtra) THEN
+        SET gMensajeError TO $'''No se definio la empresa de nomina para el flujo de horas extra'''
+        SET gEstadoInicializacionRegistroHorasExtra TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | URL aplicativo cargada | %pUrlAppRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Empresa configurada para horas extra | Id: %pIdEmpresaRegistroHorasExtra% | Nombre: %pNombreEmpresaRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Bandeja de trabajo horas extra disponible | %pDirectorioRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF IsEmpty(pRutaArchivoRegistroHorasExtra) THEN
+        Folder.GetFiles Folder: pDirectorioRegistroHorasExtra FileFilter: $'''*.xlsx''' IncludeSubfolders: False FailOnAccessDenied: True SortBy1: Folder.SortBy.NoSort SortDescending1: False SortBy2: Folder.SortBy.NoSort SortDescending2: False SortBy3: Folder.SortBy.NoSort SortDescending3: False Files=> gListaArchivosRegistroHorasExtra
+        Variables.CreateNewList List=> gListaArchivosRegistroHorasExtraValidos
+        LOOP FOREACH CurrentItemArchivoRegistroHorasExtra IN gListaArchivosRegistroHorasExtra
+            Text.ParseText.ParseForFirstOccurrence Text: CurrentItemArchivoRegistroHorasExtra TextToFind: $'''~$''' StartingPosition: 0 IgnoreCase: False OccurrencePosition=> gPosicionTemporalArchivoRegistroHorasExtra
+            IF gPosicionTemporalArchivoRegistroHorasExtra >= 0 THEN
+                File.WriteText File: gArchivoLog TextToWrite: $'''Archivo temporal descartado | %CurrentItemArchivoRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            ELSE
+                Text.ParseText.ParseForFirstOccurrence Text: CurrentItemArchivoRegistroHorasExtra TextToFind: $'''hora''' StartingPosition: 0 IgnoreCase: True OccurrencePosition=> gPosicionHoraArchivoRegistroHorasExtra
+                Text.ParseText.ParseForFirstOccurrence Text: CurrentItemArchivoRegistroHorasExtra TextToFind: $'''extra''' StartingPosition: 0 IgnoreCase: True OccurrencePosition=> gPosicionExtraArchivoRegistroHorasExtra
+                IF gPosicionHoraArchivoRegistroHorasExtra >= 0 OR gPosicionExtraArchivoRegistroHorasExtra >= 0 THEN
+                    Variables.AddItemToList Item: CurrentItemArchivoRegistroHorasExtra List: gListaArchivosRegistroHorasExtraValidos
+                    File.WriteText File: gArchivoLog TextToWrite: $'''Archivo candidato horas extra | %CurrentItemArchivoRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                ELSE
+                    File.WriteText File: gArchivoLog TextToWrite: $'''Archivo omitido por nombre para horas extra | %CurrentItemArchivoRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                END
+            END
+        END
+        SET gListaArchivosRegistroHorasExtra TO gListaArchivosRegistroHorasExtraValidos
+        SET gTotalArchivosRegistroHorasExtra TO gListaArchivosRegistroHorasExtra.Count
+        IF gTotalArchivosRegistroHorasExtra = 0 THEN
+            SET gMensajeError TO $'''No se encontro ningun archivo Excel de horas extra en la bandeja de trabajo. El nombre debe contener hora o extra'''
+            SET gEstadoInicializacionRegistroHorasExtra TO $'''ERROR'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Carpeta: %pDirectorioRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        ELSE IF gTotalArchivosRegistroHorasExtra > 1 THEN
+            SET gMensajeError TO $'''Existe mas de un archivo Excel candidato para horas extra en la bandeja de trabajo. Defina pRutaArchivoRegistroHorasExtra de forma explicita'''
+            SET gEstadoInicializacionRegistroHorasExtra TO $'''ERROR'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Total archivos: %gTotalArchivosRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        ELSE
+            SET pRutaArchivoRegistroHorasExtra TO gListaArchivosRegistroHorasExtra[0]
+            File.WriteText File: gArchivoLog TextToWrite: $'''OK | Archivo de horas extra autodetectado en bandeja de trabajo | %pRutaArchivoRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        END
+    END
+    IF (File.IfFile.DoesNotExist File: pRutaArchivoRegistroHorasExtra) THEN
+        SET gMensajeError TO $'''No existe el archivo Excel indicado para registro horas extra'''
+        SET gEstadoInicializacionRegistroHorasExtra TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Ruta: %pRutaArchivoRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: pRutaArchivoRegistroHorasExtra Visible: False ReadOnly: True Instance=> ExcelInstance
+    SET gExcelRegistroHorasExtraAbierto TO True
+    SET gExisteHojaRegistroHorasExtra TO False
+    Excel.GetAllWorksheets Instance: ExcelInstance Worksheets=> gHojasArchivoRegistroHorasExtra
+    LOOP FOREACH CurrentSheetRegistroHorasExtra IN gHojasArchivoRegistroHorasExtra
+        IF CurrentSheetRegistroHorasExtra = gNombreHojaRegistroHorasExtra THEN
+            SET gExisteHojaRegistroHorasExtra TO True
+        END
+    END
+    IF gExisteHojaRegistroHorasExtra = False THEN
+        SET gMensajeError TO $'''No existe la hoja Cesar Gomez en el archivo indicado'''
+        SET gEstadoInicializacionRegistroHorasExtra TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Archivo: %pRutaArchivoRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Excel.CloseExcel.Close Instance: ExcelInstance
+        SET gExcelRegistroHorasExtraAbierto TO False
+        EXIT FUNCTION
+    END
+    Excel.CloseExcel.Close Instance: ExcelInstance
+    SET gExcelRegistroHorasExtraAbierto TO False
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Hoja operativa encontrada | %gNombreHojaRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Lectura lineal configurada | Fila inicial: %pFilaInicialLecturaRegistroHorasExtra% | ColumnaFecha: %pColumnaFechaRegistroHorasExtra% | ColumnaHoraOrdinaria: %pColumnaHoraOrdinariaRegistroHorasExtra% | ColumnaHorasExtrasDiurnas: %pColumnaHorasExtrasDiurnasRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Modo prueba fecha: %pModoPruebaControlFechaHorasExtra% | Modo prueba hora: %pModoPruebaControlHoraHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEstadoInicializacionRegistroHorasExtra TO $'''OK'''
+END
+IF gEsErrorControladoRegistroHorasExtra = True THEN
+    ERROR => gMensajeError
+    IF gExcelRegistroHorasExtraAbierto = True THEN
+        Excel.CloseExcel.Close Instance: ExcelInstance
+        SET gExcelRegistroHorasExtraAbierto TO False
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControladoRegistroHorasExtra TO False
+END

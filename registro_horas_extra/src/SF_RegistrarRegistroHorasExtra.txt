@@ -1,0 +1,58 @@
+# SF_RegistrarRegistroHorasExtra
+# Orquesta el registro UI en dos pasos: novedad padre y detalle del lote actual de horas extra
+SET gEstadoRegistroHorasExtra TO $'''INICIANDO'''
+SET gResultadoRegistroHorasExtraVisible TO $''''''
+SET gObservacionResultadoRegistroHorasExtra TO $''''''
+SET gRegistroHorasExtraIntentado TO False
+SET gEsErrorControladoRegistroHorasExtraUI TO False
+SET gMensajeError TO $''''''
+BLOCK Error_RegistrarRegistroHorasExtra
+ON BLOCK ERROR
+    SET gEstadoRegistroHorasExtra TO $'''ERROR'''
+    SET gEsErrorControladoRegistroHorasExtraUI TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio registro horas extra | Empleado: %gIdEmpleadoRegistroHorasExtraActual% | TipoNovedadPadre: %gTipoNovedadPadreHorasExtraActual% | Fecha: %gFechaUIRegistroHorasExtraActual% | HoraBase: %gHoraBaseUI24RegistroHorasExtraActual% | HoraSalidaCalculada: %gHoraSalidaUI24RegistroHorasExtraActual% | TotalDetalles: %gTotalDetallesHorasExtraEmpleadoActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF gSesionAppAbiertaRegistroHorasExtra = False THEN
+        SET gMensajeError TO $'''No existe una sesion de navegador abierta para registrar horas extra'''
+        SET gEstadoRegistroHorasExtra TO $'''ERROR'''
+        EXIT FUNCTION
+    END
+    SET gRegistroHorasExtraIntentado TO True
+    SET gEstadoRegistroNovedadHorasExtra TO $'''NO_EJECUTADO'''
+    SET gEstadoRegistroDetalleHorasExtra TO $'''NO_EJECUTADO'''
+    SET gResultadoRegistroNovedadHorasExtraVisible TO $''''''
+    SET gObservacionRegistroNovedadHorasExtra TO $''''''
+    SET gResultadoRegistroDetalleHorasExtraVisible TO $''''''
+    SET gObservacionRegistroDetalleHorasExtra TO $''''''
+    SET gPantallaDetalleHorasExtraDisponible TO False
+    CALL SF_RegistrarNovedadHorasExtra
+    IF gEstadoRegistroNovedadHorasExtra = $'''OK''' THEN
+        CALL SF_RegistrarDetalleHorasExtraEmpleado
+    END
+    IF gEstadoRegistroNovedadHorasExtra <> $'''OK''' THEN
+        SET gEstadoRegistroHorasExtra TO gEstadoRegistroNovedadHorasExtra
+        SET gResultadoRegistroHorasExtraVisible TO gResultadoRegistroNovedadHorasExtraVisible
+        SET gObservacionResultadoRegistroHorasExtra TO gObservacionRegistroNovedadHorasExtra
+        File.WriteText File: gArchivoLog TextToWrite: $'''Registro horas extra detenido en apertura de novedad HE | Estado: %gEstadoRegistroNovedadHorasExtra% | Observacion: %gObservacionRegistroNovedadHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF gEstadoRegistroDetalleHorasExtra <> $'''OK''' THEN
+        SET gEstadoRegistroHorasExtra TO gEstadoRegistroDetalleHorasExtra
+        SET gResultadoRegistroHorasExtraVisible TO gResultadoRegistroDetalleHorasExtraVisible
+        SET gObservacionResultadoRegistroHorasExtra TO gObservacionRegistroDetalleHorasExtra
+        File.WriteText File: gArchivoLog TextToWrite: $'''Registro horas extra detenido en detalle HE empleado | Estado: %gEstadoRegistroDetalleHorasExtra% | Observacion: %gObservacionRegistroDetalleHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    SET gEstadoRegistroHorasExtra TO $'''OK'''
+    SET gResultadoRegistroHorasExtraVisible TO $'''PENDIENTE_VALIDACION_UI'''
+    SET gObservacionResultadoRegistroHorasExtra TO $'''Flujo llego a los puntos de registro de novedad padre HE y detalle del lote actual. Reemplace los bloques MAPEO_UI_PENDIENTE con los controles reales de PAD.'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Registro horas extra ejecutado hasta puntos de insercion UI | EstadoNovedad: %gEstadoRegistroNovedadHorasExtra% | EstadoDetalle: %gEstadoRegistroDetalleHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+END
+IF gEsErrorControladoRegistroHorasExtraUI = True THEN
+    ERROR => gMensajeError
+    SET gObservacionResultadoRegistroHorasExtra TO gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControladoRegistroHorasExtraUI TO False
+END

@@ -1,0 +1,112 @@
+# SF_PrepararPayloadRegistroHorasExtra
+# Calcula la hora final de salida a registrar en el control reloj
+SET gEstadoPreparacionPayloadRegistroHorasExtra TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControladoPreparacionPayloadRegistroHorasExtra TO False
+BLOCK Error_PrepararPayloadRegistroHorasExtra
+ON BLOCK ERROR
+    SET gEstadoPreparacionPayloadRegistroHorasExtra TO $'''ERROR'''
+    SET gEsErrorControladoPreparacionPayloadRegistroHorasExtra TO True
+    THROW ERROR
+END
+    IF IsEmpty(gIdEmpleadoRegistroHorasExtraActual) THEN
+        SET gMensajeError TO $'''No se recibio IdEmpleado para preparar payload de horas extra'''
+        SET gEstadoPreparacionPayloadRegistroHorasExtra TO $'''ERROR'''
+        EXIT FUNCTION
+    END
+    IF IsEmpty(gFechaLaboradaRegistroHorasExtraActual) OR IsEmpty(gHoraOrdinariaRegistroHorasExtraActual) OR IsEmpty(gCantidadHorasConceptoRegistroHorasExtraActual) THEN
+        SET gMensajeError TO $'''Faltan fecha, hora ordinaria o cantidad de horas del concepto actual para calcular la salida'''
+        SET gEstadoPreparacionPayloadRegistroHorasExtra TO $'''ERROR'''
+        EXIT FUNCTION
+    END
+    SET gObservacionAplicarRegistroHorasExtraActual TO pObservacionRegistroHorasExtraQuemada
+    Scripting.RunPowershellScript.RunScript Script: $'''$fechaRaw = \"%gFechaLaboradaRegistroHorasExtraActual%\".Trim()
+$horaOrdinariaRaw = \"%gHoraOrdinariaRegistroHorasExtraActual%\".Trim()
+$horasExtrasRaw = \"%gCantidadHorasConceptoRegistroHorasExtraActual%\".Trim()
+
+function Parse-Decimal([string]$value) {
+    $normalized = $value.Replace(\',\', \'.\')
+    return [decimal]::Parse($normalized, [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
+$fecha = $null
+$oaValue = 0.0
+if ([double]::TryParse($fechaRaw, [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$oaValue)) {
+    $fecha = [DateTime]::FromOADate($oaValue)
+}
+else {
+    $formats = @(\"dd/MM/yyyy\", \"d/M/yyyy\", \"dd-MM-yyyy\", \"d-M-yyyy\", \"yyyy-MM-dd\", \"MM/dd/yyyy\", \"M/d/yyyy\")
+    foreach ($format in $formats) {
+        $tmpFecha = [datetime]::MinValue
+        if ([datetime]::TryParseExact($fechaRaw, $format, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$tmpFecha)) {
+            $fecha = $tmpFecha
+            break
+        }
+    }
+
+    if ($null -eq $fecha) {
+        $tmpFecha = [datetime]::MinValue
+        if ([datetime]::TryParse($fechaRaw, [System.Globalization.CultureInfo]::GetCultureInfo(\"es-CO\"), [System.Globalization.DateTimeStyles]::None, [ref]$tmpFecha)) {
+            $fecha = $tmpFecha
+        }
+    }
+}
+
+if ($null -eq $fecha) {
+    throw \"FECHA_INVALIDA\"
+}
+
+$horaOrdinaria = Parse-Decimal $horaOrdinariaRaw
+$horasExtras = Parse-Decimal $horasExtrasRaw
+
+$base = $null
+switch ($horaOrdinaria.ToString([System.Globalization.CultureInfo]::InvariantCulture)) {
+    \"8.5\" { $base = [TimeSpan]::FromHours(16.5) }
+    \"7.5\" { $base = [TimeSpan]::FromHours(15.5) }
+    \"2.5\" { $base = [TimeSpan]::FromHours(8.5) }
+    default { throw \"HORA_ORDINARIA_NO_MAPEADA:$horaOrdinariaRaw\" }
+}
+
+$minutosExtras = [int][Math]::Round(([decimal]$horasExtras * 60), 0, [MidpointRounding]::AwayFromZero)
+$fechaBase = $fecha.Date
+$fechaHoraInicio = $fechaBase.Add($base)
+$fechaHoraSalida = $fechaHoraInicio.AddMinutes($minutosExtras)
+$horaBaseHH = \"{0:00}\" -f [int]$base.TotalHours
+$horaBaseMM = \"{0:00}\" -f $base.Minutes
+$horaBase24 = \"$horaBaseHH`:$horaBaseMM\"
+$horaSalidaHH = $fechaHoraSalida.ToString(\"HH\")
+$horaSalidaMM = $fechaHoraSalida.ToString(\"mm\")
+$horaSalida24 = $fechaHoraSalida.ToString(\"HH:mm\")
+$fechaUi = $fechaBase.ToString(\"yyyy-MM-dd\")
+$fechaInicioUi = $fechaHoraInicio.ToString(\"yyyy-MM-dd\")
+$fechaFinUi = $fechaHoraSalida.ToString(\"yyyy-MM-dd\")
+
+[Console]::Write(\"$fechaUi|$horaBase24|$minutosExtras|$horaSalida24|$horaSalidaHH|$horaSalidaMM|$horaBaseHH|$horaBaseMM|$fechaInicioUi|$fechaFinUi|FIN\")''' ScriptOutput=> gResultadoCalculoHorarioRegistroHorasExtra
+    Text.SplitText.SplitWithDelimiter Text: gResultadoCalculoHorarioRegistroHorasExtra CustomDelimiter: $'''|''' IsRegEx: False Result=> gLineasResultadoCalculoHorarioRegistroHorasExtra
+    IF gLineasResultadoCalculoHorarioRegistroHorasExtra.Count < 11 THEN
+        SET gMensajeError TO $'''No fue posible calcular la hora de salida desde B3, J3 y K3'''
+        SET gEstadoPreparacionPayloadRegistroHorasExtra TO $'''ERROR'''
+        EXIT FUNCTION
+    END
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[0] TrimOption: Text.TrimOption.Both TrimmedText=> gFechaUIRegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[1] TrimOption: Text.TrimOption.Both TrimmedText=> gHoraBaseUI24RegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[2] TrimOption: Text.TrimOption.Both TrimmedText=> gMinutosExtrasRegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[3] TrimOption: Text.TrimOption.Both TrimmedText=> gHoraSalidaUI24RegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[4] TrimOption: Text.TrimOption.Both TrimmedText=> gHoraSalidaHHRegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[5] TrimOption: Text.TrimOption.Both TrimmedText=> gHoraSalidaMMRegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[1] TrimOption: Text.TrimOption.Both TrimmedText=> gHoraInicioUI24RegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[6] TrimOption: Text.TrimOption.Both TrimmedText=> gHoraInicioHHRegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[7] TrimOption: Text.TrimOption.Both TrimmedText=> gHoraInicioMMRegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[8] TrimOption: Text.TrimOption.Both TrimmedText=> gFechaInicioUIRegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[9] TrimOption: Text.TrimOption.Both TrimmedText=> gFechaFinUIRegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[3] TrimOption: Text.TrimOption.Both TrimmedText=> gHoraFinUI24RegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[4] TrimOption: Text.TrimOption.Both TrimmedText=> gHoraFinHHRegistroHorasExtraActual
+    Text.Trim Text: gLineasResultadoCalculoHorarioRegistroHorasExtra[5] TrimOption: Text.TrimOption.Both TrimmedText=> gHoraFinMMRegistroHorasExtraActual
+    SET gEstadoPreparacionPayloadRegistroHorasExtra TO $'''OK'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Payload horas extra preparado | Empleado: %gIdEmpleadoRegistroHorasExtraActual% | TipoPadre: %gTipoNovedadPadreHorasExtraActual% | Origen: %gOrigenHorasExtraActual% | Concepto: %gConceptoHorasExtraActual% | FechaInicio: %gFechaInicioUIRegistroHorasExtraActual% | HoraInicio: %gHoraInicioUI24RegistroHorasExtraActual% | FechaFin: %gFechaFinUIRegistroHorasExtraActual% | HoraFin: %gHoraFinUI24RegistroHorasExtraActual% | MinutosExtras: %gMinutosExtrasRegistroHorasExtraActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+END
+IF gEsErrorControladoPreparacionPayloadRegistroHorasExtra = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControladoPreparacionPayloadRegistroHorasExtra TO False
+END

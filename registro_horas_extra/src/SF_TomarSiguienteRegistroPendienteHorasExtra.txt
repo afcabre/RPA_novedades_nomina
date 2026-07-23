@@ -1,0 +1,193 @@
+# SF_TomarSiguienteRegistroPendienteHorasExtra
+# Lee linealmente la hoja actual, precarga pendientes y entrega el siguiente lote por tipo de novedad padre
+SET gEstadoTomaRegistroPendienteHorasExtra TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControladoTomaRegistroHorasExtra TO False
+SET gHayRegistroPendienteHorasExtra TO False
+SET gExcelTomaRegistroHorasExtraAbierto TO False
+SET gDetalleHorasExtraActualTexto TO $''''''
+SET gTotalDetallesHorasExtraEmpleadoActual TO 0
+SET gIndiceDetalleHorasExtraActual TO 0
+SET gFilaInicioBloqueHorasExtraActual TO 0
+SET gFilaFinBloqueHorasExtraActual TO 0
+Variables.CreateNewList List=> gListaDetallesHorasExtraEmpleadoActual
+BLOCK Error_TomarSiguienteRegistroPendienteHorasExtra
+ON BLOCK ERROR
+    SET gEstadoTomaRegistroPendienteHorasExtra TO $'''ERROR'''
+    SET gEsErrorControladoTomaRegistroHorasExtra TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio seleccion lote horas extra | Archivo: %pRutaArchivoRegistroHorasExtra% | Hoja: %gNombreHojaRegistroHorasExtra% | Fila inicio busqueda: %gFilaSiguienteBusquedaRegistroHorasExtra% | Pendientes en cola: %gListaPendientesHorasExtraGlobal.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    Variables.CreateNewList List=> gListaDetallesHorasExtraEmpleadoActual
+    IF gListaPendientesHorasExtraGlobal.Count = 0 THEN
+        IF (File.IfFile.DoesNotExist File: pRutaArchivoRegistroHorasExtra) THEN
+            SET gMensajeError TO $'''No existe el archivo Excel para tomar registros de horas extra'''
+            SET gEstadoTomaRegistroPendienteHorasExtra TO $'''ERROR'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Ruta: %pRutaArchivoRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        END
+        Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: pRutaArchivoRegistroHorasExtra Visible: False ReadOnly: False Instance=> ExcelInstance
+        SET gExcelTomaRegistroHorasExtraAbierto TO True
+        Excel.SetActiveWorksheet.ActivateWorksheetByName Instance: ExcelInstance Name: gNombreHojaRegistroHorasExtra
+        SET gBuscarRegistroPendienteHorasExtra TO True
+        SET gFilaBusquedaRegistroHorasExtraActual TO gFilaSiguienteBusquedaRegistroHorasExtra
+        LOOP WHILE gBuscarRegistroPendienteHorasExtra = True
+            File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG lectura fila horas extra | Hoja: %gNombreHojaRegistroHorasExtra% | FilaBusqueda: %gFilaBusquedaRegistroHorasExtraActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaFechaRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gFechaLaboradaFilaHorasExtraActual
+            IF IsEmpty(gFechaLaboradaFilaHorasExtraActual) THEN
+                SET gBuscarRegistroPendienteHorasExtra TO False
+                SET gFilaSiguienteBusquedaRegistroHorasExtra TO gFilaBusquedaRegistroHorasExtraActual
+            ELSE
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaFuncionarioRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gFuncionarioFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaMantHoraOrdinariaRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gMantHoraOrdinariaFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaMantHorasExtrasDiurnaRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gMantHorasExtrasDiurnaFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaMantHorasExtrasNocturnaRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gMantHorasExtrasNocturnaFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaMantRecargoNocturnoRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gMantRecargoNocturnoFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaMantHorasExtrasFestivasDiurnaRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gMantHorasExtrasFestivasDiurnaFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaMantHorasExtrasFestivasNocturnaRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gMantHorasExtrasFestivasNocturnaFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaMantRecargoNocturnoFestivoRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gMantRecargoNocturnoFestivoFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaOperHoraOrdinariaRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gOperHoraOrdinariaFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaOperHorasExtrasDiurnaRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gOperHorasExtrasDiurnaFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaOperHorasExtrasNocturnaRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gOperHorasExtrasNocturnaFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaOperRecargoNocturnoRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gOperRecargoNocturnoFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaOperHorasExtrasFestivasDiurnaRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gOperHorasExtrasFestivasDiurnaFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaOperHorasExtrasFestivasNocturnaRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gOperHorasExtrasFestivasNocturnaFilaHorasExtraActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: pColumnaOperRecargoNocturnoFestivoRegistroHorasExtra StartRow: gFilaBusquedaRegistroHorasExtraActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gOperRecargoNocturnoFestivoFilaHorasExtraActual
+                SET gIdEmpleadoFilaHorasExtraActual TO pIdEmpleadoQuemadoRegistroHorasExtra
+                SET gNombreEmpleadoFilaHorasExtraActual TO pNombreEmpleadoQuemadoRegistroHorasExtra
+                IF Not(IsEmpty(gFuncionarioFilaHorasExtraActual)) THEN
+                    SET gNombreEmpleadoFilaHorasExtraActual TO gFuncionarioFilaHorasExtraActual
+                END
+                IF Not(IsEmpty(gMantHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gMantHorasExtrasDiurnaFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|MANTENIMIENTO|%pTipoNovedadHEDRegistroHorasExtra%|Hora extra diurna|%gMantHoraOrdinariaFilaHorasExtraActual%|%gMantHorasExtrasDiurnaFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                IF Not(IsEmpty(gMantHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gMantHorasExtrasNocturnaFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|MANTENIMIENTO|%pTipoNovedadHENRegistroHorasExtra%|Hora extra nocturna|%gMantHoraOrdinariaFilaHorasExtraActual%|%gMantHorasExtrasNocturnaFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                IF Not(IsEmpty(gMantHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gMantRecargoNocturnoFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|MANTENIMIENTO|%pTipoNovedadHENRegistroHorasExtra%|Hora recargo nocturna|%gMantHoraOrdinariaFilaHorasExtraActual%|%gMantRecargoNocturnoFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                IF Not(IsEmpty(gMantHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gMantHorasExtrasFestivasDiurnaFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|MANTENIMIENTO|%pTipoNovedadHEFDRegistroHorasExtra%|Hora extra diurna dominical y festivos|%gMantHoraOrdinariaFilaHorasExtraActual%|%gMantHorasExtrasFestivasDiurnaFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                IF Not(IsEmpty(gMantHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gMantHorasExtrasFestivasNocturnaFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|MANTENIMIENTO|%pTipoNovedadHEFNRegistroHorasExtra%|Hora extra nocturna dominical y festivos|%gMantHoraOrdinariaFilaHorasExtraActual%|%gMantHorasExtrasFestivasNocturnaFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                IF Not(IsEmpty(gMantHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gMantRecargoNocturnoFestivoFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|MANTENIMIENTO|%pTipoNovedadHEFNRegistroHorasExtra%|Hora recargo nocturna dominical y festivos|%gMantHoraOrdinariaFilaHorasExtraActual%|%gMantRecargoNocturnoFestivoFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                IF Not(IsEmpty(gOperHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gOperHorasExtrasDiurnaFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|OPERADOR|%pTipoNovedadOperadorRegistroHorasExtra%|Hora extra diurna|%gOperHoraOrdinariaFilaHorasExtraActual%|%gOperHorasExtrasDiurnaFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                IF Not(IsEmpty(gOperHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gOperHorasExtrasNocturnaFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|OPERADOR|%pTipoNovedadOperadorRegistroHorasExtra%|Hora extra nocturna|%gOperHoraOrdinariaFilaHorasExtraActual%|%gOperHorasExtrasNocturnaFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                IF Not(IsEmpty(gOperHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gOperRecargoNocturnoFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|OPERADOR|%pTipoNovedadOperadorRegistroHorasExtra%|Hora recargo nocturna|%gOperHoraOrdinariaFilaHorasExtraActual%|%gOperRecargoNocturnoFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                IF Not(IsEmpty(gOperHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gOperHorasExtrasFestivasDiurnaFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|OPERADOR|%pTipoNovedadOperadorRegistroHorasExtra%|Hora extra diurna dominical y festivos|%gOperHoraOrdinariaFilaHorasExtraActual%|%gOperHorasExtrasFestivasDiurnaFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                IF Not(IsEmpty(gOperHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gOperHorasExtrasFestivasNocturnaFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|OPERADOR|%pTipoNovedadOperadorRegistroHorasExtra%|Hora extra nocturna dominical y festivos|%gOperHoraOrdinariaFilaHorasExtraActual%|%gOperHorasExtrasFestivasNocturnaFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                IF Not(IsEmpty(gOperHoraOrdinariaFilaHorasExtraActual)) AND Not(IsEmpty(gOperRecargoNocturnoFestivoFilaHorasExtraActual)) THEN
+                    SET gDetalleHorasExtraFilaTextoActual TO $'''%gFilaBusquedaRegistroHorasExtraActual%|%gFechaLaboradaFilaHorasExtraActual%|OPERADOR|%pTipoNovedadOperadorRegistroHorasExtra%|Hora recargo nocturna dominical y festivos|%gOperHoraOrdinariaFilaHorasExtraActual%|%gOperRecargoNocturnoFestivoFilaHorasExtraActual%|%gIdEmpleadoFilaHorasExtraActual%|%gNombreEmpleadoFilaHorasExtraActual%'''
+                    Variables.AddItemToList Item: gDetalleHorasExtraFilaTextoActual List: gListaPendientesHorasExtraGlobal
+                END
+                File.WriteText File: gArchivoLog TextToWrite: $'''Fila leida para cola HE | Fila: %gFilaBusquedaRegistroHorasExtraActual% | Fecha: %gFechaLaboradaFilaHorasExtraActual% | Pendientes acumulados: %gListaPendientesHorasExtraGlobal.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                Variables.IncreaseVariable Value: gFilaBusquedaRegistroHorasExtraActual IncrementValue: 1
+                SET gFilaSiguienteBusquedaRegistroHorasExtra TO gFilaBusquedaRegistroHorasExtraActual
+            END
+        END
+        Excel.CloseExcel.Close Instance: ExcelInstance
+        SET gExcelTomaRegistroHorasExtraAbierto TO False
+        File.WriteText File: gArchivoLog TextToWrite: $'''Lectura lineal completada | Pendientes en cola: %gListaPendientesHorasExtraGlobal.Count% | Siguiente fila de busqueda: %gFilaSiguienteBusquedaRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+    IF gListaPendientesHorasExtraGlobal.Count > 0 THEN
+        SET gDetalleHorasExtraActualTexto TO gListaPendientesHorasExtraGlobal[0]
+        Text.SplitText.SplitWithDelimiter Text: gDetalleHorasExtraActualTexto CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesPrimerPendienteHorasExtra
+        IF gPartesPrimerPendienteHorasExtra.Count < 9 THEN
+            SET gMensajeError TO $'''No fue posible interpretar el primer pendiente de horas extra cargado desde Excel'''
+            SET gEstadoTomaRegistroPendienteHorasExtra TO $'''ERROR'''
+            EXIT FUNCTION
+        END
+        Text.Trim Text: gPartesPrimerPendienteHorasExtra[3] TrimOption: Text.TrimOption.Both TrimmedText=> gTipoNovedadPadreLoteHorasExtraActual
+        Text.Trim Text: gPartesPrimerPendienteHorasExtra[7] TrimOption: Text.TrimOption.Both TrimmedText=> gIdEmpleadoLoteHorasExtraActual
+        Text.Trim Text: gPartesPrimerPendienteHorasExtra[8] TrimOption: Text.TrimOption.Both TrimmedText=> gNombreEmpleadoLoteHorasExtraActual
+        Variables.CreateNewList List=> gListaPendientesHorasExtraRestante
+        LOOP FOREACH CurrentPendienteHorasExtraGlobal IN gListaPendientesHorasExtraGlobal
+            Text.SplitText.SplitWithDelimiter Text: CurrentPendienteHorasExtraGlobal CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesPendienteHorasExtraGlobalActual
+            IF gPartesPendienteHorasExtraGlobalActual.Count < 9 THEN
+                SET gMensajeError TO $'''No fue posible interpretar un pendiente de horas extra cargado en memoria'''
+                SET gEstadoTomaRegistroPendienteHorasExtra TO $'''ERROR'''
+                EXIT FUNCTION
+            END
+            Text.Trim Text: gPartesPendienteHorasExtraGlobalActual[0] TrimOption: Text.TrimOption.Both TrimmedText=> gFilaPendienteHorasExtraGrupoActual
+            Text.Trim Text: gPartesPendienteHorasExtraGlobalActual[3] TrimOption: Text.TrimOption.Both TrimmedText=> gTipoNovedadPadrePendienteHorasExtraActual
+            Text.Trim Text: gPartesPendienteHorasExtraGlobalActual[7] TrimOption: Text.TrimOption.Both TrimmedText=> gIdEmpleadoPendienteHorasExtraActual
+            IF gTipoNovedadPadrePendienteHorasExtraActual = gTipoNovedadPadreLoteHorasExtraActual AND gIdEmpleadoPendienteHorasExtraActual = gIdEmpleadoLoteHorasExtraActual THEN
+                IF gListaDetallesHorasExtraEmpleadoActual.Count = 0 THEN
+                    SET gFilaInicioBloqueHorasExtraActual TO gFilaPendienteHorasExtraGrupoActual
+                END
+                Variables.AddItemToList Item: CurrentPendienteHorasExtraGlobal List: gListaDetallesHorasExtraEmpleadoActual
+                SET gFilaFinBloqueHorasExtraActual TO gFilaPendienteHorasExtraGrupoActual
+            ELSE
+                Variables.AddItemToList Item: CurrentPendienteHorasExtraGlobal List: gListaPendientesHorasExtraRestante
+            END
+        END
+        SET gListaPendientesHorasExtraGlobal TO gListaPendientesHorasExtraRestante
+        SET gTotalDetallesHorasExtraEmpleadoActual TO gListaDetallesHorasExtraEmpleadoActual.Count
+        IF gTotalDetallesHorasExtraEmpleadoActual > 0 THEN
+            SET gDetalleHorasExtraActualTexto TO gListaDetallesHorasExtraEmpleadoActual[0]
+            Text.SplitText.SplitWithDelimiter Text: gDetalleHorasExtraActualTexto CustomDelimiter: $'''|''' IsRegEx: False Result=> gPartesDetalleHorasExtraActual
+            IF gPartesDetalleHorasExtraActual.Count < 9 THEN
+                SET gMensajeError TO $'''No fue posible cargar el primer detalle del lote actual de horas extra'''
+                SET gEstadoTomaRegistroPendienteHorasExtra TO $'''ERROR'''
+                EXIT FUNCTION
+            END
+            Text.Trim Text: gPartesDetalleHorasExtraActual[0] TrimOption: Text.TrimOption.Both TrimmedText=> gFilaControlRegistroHorasExtraActual
+            Text.Trim Text: gPartesDetalleHorasExtraActual[1] TrimOption: Text.TrimOption.Both TrimmedText=> gFechaLaboradaRegistroHorasExtraActual
+            Text.Trim Text: gPartesDetalleHorasExtraActual[2] TrimOption: Text.TrimOption.Both TrimmedText=> gOrigenHorasExtraActual
+            Text.Trim Text: gPartesDetalleHorasExtraActual[3] TrimOption: Text.TrimOption.Both TrimmedText=> gTipoNovedadPadreHorasExtraActual
+            Text.Trim Text: gPartesDetalleHorasExtraActual[4] TrimOption: Text.TrimOption.Both TrimmedText=> gConceptoHorasExtraActual
+            Text.Trim Text: gPartesDetalleHorasExtraActual[5] TrimOption: Text.TrimOption.Both TrimmedText=> gHoraOrdinariaRegistroHorasExtraActual
+            Text.Trim Text: gPartesDetalleHorasExtraActual[6] TrimOption: Text.TrimOption.Both TrimmedText=> gCantidadHorasConceptoRegistroHorasExtraActual
+            Text.Trim Text: gPartesDetalleHorasExtraActual[7] TrimOption: Text.TrimOption.Both TrimmedText=> gIdEmpleadoRegistroHorasExtraActual
+            Text.Trim Text: gPartesDetalleHorasExtraActual[8] TrimOption: Text.TrimOption.Both TrimmedText=> gNombreEmpleadoRegistroHorasExtraActual
+            SET gHorasExtrasDiurnasRegistroHorasExtraActual TO gCantidadHorasConceptoRegistroHorasExtraActual
+            SET gIdRegistroHorasExtraActual TO $'''%gIdEmpleadoRegistroHorasExtraActual%_%gTipoNovedadPadreHorasExtraActual%_FILA_%gFilaInicioBloqueHorasExtraActual%_%gFilaFinBloqueHorasExtraActual%'''
+            SET gHayRegistroPendienteHorasExtra TO True
+            SET gEstadoTomaRegistroPendienteHorasExtra TO $'''OK'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''Lote HE seleccionado | TipoNovedadPadre: %gTipoNovedadPadreHorasExtraActual% | FilaInicio: %gFilaInicioBloqueHorasExtraActual% | FilaFin: %gFilaFinBloqueHorasExtraActual% | TotalDetalles: %gTotalDetallesHorasExtraEmpleadoActual% | Empleado: %gIdEmpleadoRegistroHorasExtraActual% | Nombre: %gNombreEmpleadoRegistroHorasExtraActual% | Pendientes restantes: %gListaPendientesHorasExtraGlobal.Count%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            SET gMensajeError TO $'''La cola de pendientes de horas extra no produjo un lote util para registrar'''
+            SET gEstadoTomaRegistroPendienteHorasExtra TO $'''ERROR'''
+            EXIT FUNCTION
+        END
+    ELSE
+        SET gEstadoTomaRegistroPendienteHorasExtra TO $'''SIN_PENDIENTES'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''No hay lotes pendientes controlados en la hoja %gNombreHojaRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+END
+IF gEsErrorControladoTomaRegistroHorasExtra = True THEN
+    ERROR => gMensajeError
+    IF gExcelTomaRegistroHorasExtraAbierto = True THEN
+        Excel.CloseExcel.Close Instance: ExcelInstance
+        SET gExcelTomaRegistroHorasExtraAbierto TO False
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControladoTomaRegistroHorasExtra TO False
+END

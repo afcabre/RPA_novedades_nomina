@@ -1,0 +1,30 @@
+/# |------------- Main Registro Horas Extra -------------|
+       Registro de horas extra en aplicativo web desde archivo Excel de prueba#/
+CALL SF_InitRegistroHorasExtra
+IF gEstadoInicializacionRegistroHorasExtra = $'''OK''' THEN
+    CALL SF_PrepararContextoRegistroHorasExtra
+    IF gEstadoContextoRegistroHorasExtra = $'''OK''' THEN
+        LABEL CicloRegistrosPendientesHorasExtra
+        CALL SF_TomarSiguienteRegistroPendienteHorasExtra
+        IF gHayRegistroPendienteHorasExtra = False THEN
+            File.WriteText File: gArchivoLog TextToWrite: $'''No hay mas registros pendientes para registrar en horas extra''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        ELSE
+            CALL SF_PrepararPayloadRegistroHorasExtra
+            IF gEstadoPreparacionPayloadRegistroHorasExtra = $'''OK''' THEN
+                CALL SF_RegistrarRegistroHorasExtra
+                IF gEstadoRegistroHorasExtra = $'''OK''' THEN
+                    CALL SF_ConfirmarResultadoRegistroHorasExtra
+                ELSE
+                    SET gEstadoConfirmacionRegistroHorasExtra TO $'''NO_EJECUTADO'''
+                    File.WriteText File: gArchivoLog TextToWrite: $'''Confirmacion omitida por error en registro horas extra | Estado: %gEstadoRegistroHorasExtra% | Observacion: %gObservacionResultadoRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+                END
+            END
+            CALL SF_ActualizarResultadoRegistroHorasExtraExcel
+            IF gEstadoPreparacionPayloadRegistroHorasExtra = $'''OK''' AND gEstadoRegistroHorasExtra = $'''OK''' THEN
+                GOTO CicloRegistrosPendientesHorasExtra
+            ELSE
+                File.WriteText File: gArchivoLog TextToWrite: $'''Flujo principal detenido por error | EstadoPayload: %gEstadoPreparacionPayloadRegistroHorasExtra% | EstadoRegistro: %gEstadoRegistroHorasExtra% | Observacion: %gObservacionResultadoRegistroHorasExtra%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            END
+        END
+    END
+END

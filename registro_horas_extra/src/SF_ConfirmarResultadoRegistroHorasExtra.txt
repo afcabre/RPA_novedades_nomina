@@ -1,0 +1,25 @@
+# SF_ConfirmarResultadoRegistroHorasExtra
+# Placeholder para confirmar visualmente el resultado del registro en la pantalla
+SET gEstadoConfirmacionRegistroHorasExtra TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControladoConfirmacionRegistroHorasExtra TO False
+BLOCK Error_ConfirmarResultadoRegistroHorasExtra
+ON BLOCK ERROR
+    SET gEstadoConfirmacionRegistroHorasExtra TO $'''ERROR'''
+    SET gEsErrorControladoConfirmacionRegistroHorasExtra TO True
+    THROW ERROR
+END
+    IF IsEmpty(gResultadoRegistroHorasExtraVisible) THEN
+        SET gResultadoRegistroHorasExtraVisible TO $'''SIN_CONFIRMACION_AUTOMATICA'''
+    END
+    IF IsEmpty(gObservacionResultadoRegistroHorasExtra) THEN
+        SET gObservacionResultadoRegistroHorasExtra TO $'''No se implemento confirmacion UI automatica en esta fase'''
+    END
+    SET gEstadoConfirmacionRegistroHorasExtra TO $'''OK'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Confirmacion placeholder ejecutada | Resultado visible: %gResultadoRegistroHorasExtraVisible%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+END
+IF gEsErrorControladoConfirmacionRegistroHorasExtra = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControladoConfirmacionRegistroHorasExtra TO False
+END

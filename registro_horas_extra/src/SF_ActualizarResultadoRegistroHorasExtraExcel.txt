@@ -1,0 +1,37 @@
+# SF_ActualizarResultadoRegistroHorasExtraExcel
+# En esta fase no persiste en Excel porque la hoja real no tiene columna de salida definida
+SET gEstadoActualizacionExcelRegistroHorasExtra TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControladoActualizacionExcelRegistroHorasExtra TO False
+BLOCK Error_ActualizarResultadoRegistroHorasExtraExcel
+ON BLOCK ERROR
+    SET gEstadoActualizacionExcelRegistroHorasExtra TO $'''ERROR'''
+    SET gEsErrorControladoActualizacionExcelRegistroHorasExtra TO True
+    THROW ERROR
+END
+    SET gEstadoFinalRegistroHorasExtraExcelActual TO gEstadoRegistroHorasExtra
+    IF IsEmpty(gEstadoFinalRegistroHorasExtraExcelActual) OR gEstadoFinalRegistroHorasExtraExcelActual = $'''NO_EJECUTADO''' THEN
+        SET gEstadoFinalRegistroHorasExtraExcelActual TO gEstadoPreparacionPayloadRegistroHorasExtra
+    END
+    IF IsEmpty(gEstadoFinalRegistroHorasExtraExcelActual) OR gEstadoFinalRegistroHorasExtraExcelActual = $'''NO_EJECUTADO''' THEN
+        SET gEstadoFinalRegistroHorasExtraExcelActual TO gEstadoTomaRegistroPendienteHorasExtra
+    END
+    SET gResultadoFinalRegistroHorasExtraExcelActual TO gResultadoRegistroHorasExtraVisible
+    IF IsEmpty(gResultadoFinalRegistroHorasExtraExcelActual) THEN
+        SET gResultadoFinalRegistroHorasExtraExcelActual TO gEstadoConfirmacionRegistroHorasExtra
+    END
+    IF IsEmpty(gResultadoFinalRegistroHorasExtraExcelActual) OR gResultadoFinalRegistroHorasExtraExcelActual = $'''NO_EJECUTADO''' THEN
+        SET gResultadoFinalRegistroHorasExtraExcelActual TO gEstadoFinalRegistroHorasExtraExcelActual
+    END
+    SET gObservacionFinalRegistroHorasExtraExcelActual TO gObservacionResultadoRegistroHorasExtra
+    IF IsEmpty(gObservacionFinalRegistroHorasExtraExcelActual) THEN
+        SET gObservacionFinalRegistroHorasExtraExcelActual TO gMensajeError
+    END
+    SET gEstadoActualizacionExcelRegistroHorasExtra TO $'''OK'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Resultado no persistido en Excel por diseno actual | Estado: %gEstadoFinalRegistroHorasExtraExcelActual% | Resultado: %gResultadoFinalRegistroHorasExtraExcelActual% | Observacion: %gObservacionFinalRegistroHorasExtraExcelActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+END
+IF gEsErrorControladoActualizacionExcelRegistroHorasExtra = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControladoActualizacionExcelRegistroHorasExtra TO False
+END
