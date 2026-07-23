@@ -10,7 +10,7 @@ IF gEstadoInicializacionRegistroNomina = $'''OK''' THEN
             File.WriteText File: gArchivoLog TextToWrite: $'''No hay mas registros pendientes para registrar en nomina''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
         ELSE
             CALL SF_RegistrarRegistroNomina
-            CALL SF_ConfirmarResultadoRegistroNomina
+            CALL  SF_ConfirmarResultadoRegistroNomina
             CALL SF_ActualizarResultadoRegistroExcel
             GOTO CicloRegistrosPendientesNomina
         END

@@ -1,3 +1,68 @@
 # SF_RegistrarRegistroNomina
-# Placeholder para registrar el concepto del item actual en el sistema
-# usando la informacion del registro operativo ya preparado
+# Registra una sola novedad en la pantalla ya abierta de Asignar novedades
+# Usa como entrada el registro actual cargado por SF_TomarSiguienteRegistroPendienteNomina
+# Salidas:
+# - gEstadoRegistroNomina Text
+# - gMensajeError Text
+# - gRegistroNominaIntentado Boolean
+SET gEstadoRegistroNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControladoRegistroNomina TO False
+SET gRegistroNominaIntentado TO False
+BLOCK Error_RegistrarRegistroNomina
+ON BLOCK ERROR
+    SET gEstadoRegistroNomina TO $'''ERROR'''
+    SET gEsErrorControladoRegistroNomina TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio registro novedad nomina | Tercero: %gIdTerceroRegistroNominaActual% | Concepto: %gIdConceptoRegistroNominaActual% | Valor: %gValorRegistroNominaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF IsEmpty(gIdTerceroRegistroNominaActual) THEN
+        SET gMensajeError TO $'''No se recibio el id del tercero para registro de nomina'''
+        SET gEstadoRegistroNomina TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF IsEmpty(gIdConceptoRegistroNominaActual) THEN
+        SET gMensajeError TO $'''No se recibio el id del concepto para registro de nomina'''
+        SET gEstadoRegistroNomina TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF IsEmpty(gValorRegistroNominaActual) THEN
+        SET gMensajeError TO $'''No se recibio el valor para registro de nomina'''
+        SET gEstadoRegistroNomina TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    IF gSesionAppAbiertaRegistroNomina = False THEN
+        SET gMensajeError TO $'''No existe una sesion de navegador abierta para registrar la novedad'''
+        SET gEstadoRegistroNomina TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    SET gRegistroNominaIntentado TO True
+    # MAPEO_UI_PENDIENTE
+    # En este punto debes insertar manualmente las acciones PAD reales de la pantalla Asignar novedades.
+    # El bloque esperado es este:
+    # 1. Poblar campo Id tercero persona/empleado con gIdTerceroRegistroNominaActual
+    # 2. Poblar campo Id concepto con gIdConceptoRegistroNominaActual
+    # 3. Poblar campo Valor con gValorRegistroNominaActual
+    # 4. Presionar boton Agregar novedad
+    # 5. Si la pantalla lo exige, esperar confirmacion visual o recarga parcial antes de continuar
+    # Variables disponibles para el mapeo:
+    # - gIdTerceroRegistroNominaActual
+    # - gIdConceptoRegistroNominaActual
+    # - gValorRegistroNominaActual
+    # - gNombreTerceroRegistroNominaActual
+    # - gConceptoRegistroNominaActual
+    # - gObservacionesRegistroNominaActual
+    File.WriteText File: gArchivoLog TextToWrite: $'''PENDIENTE_UI | Mapear controles reales de Id tercero, Id concepto, Valor y boton Agregar novedad''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEstadoRegistroNomina TO $'''OK'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Registro novedad nomina ejecutado hasta punto de insercion UI''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+END
+IF gEsErrorControladoRegistroNomina = True THEN
+    ERROR => gMensajeError
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControladoRegistroNomina TO False
+END

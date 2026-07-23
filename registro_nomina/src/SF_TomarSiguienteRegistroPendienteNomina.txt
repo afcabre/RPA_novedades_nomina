@@ -1,2 +1,78 @@
 # SF_TomarSiguienteRegistroPendienteNomina
-# Placeholder para seleccion del siguiente registro pendiente desde la hoja registroNovedadesNomina
+# Lee la siguiente fila autorregistrable desde la hoja registroNovedadesNomina
+SET gEstadoTomaRegistroPendienteNomina TO $'''INICIANDO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControladoTomaRegistroNomina TO False
+SET gHayRegistroPendienteNomina TO False
+SET gExcelTomaRegistroNominaAbierto TO False
+BLOCK Error_TomarSiguienteRegistroPendienteNomina
+ON BLOCK ERROR
+    SET gEstadoTomaRegistroPendienteNomina TO $'''ERROR'''
+    SET gEsErrorControladoTomaRegistroNomina TO True
+    THROW ERROR
+END
+    File.WriteText File: gArchivoLog TextToWrite: $'''__________________________________________________
+Inicio seleccion siguiente registro nomina | Archivo: %pRutaArchivoAnalisisRegistroNomina% | Fila inicio busqueda: %gFilaSiguienteBusquedaRegistroNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF (File.IfFile.DoesNotExist File: pRutaArchivoAnalisisRegistroNomina) THEN
+        SET gMensajeError TO $'''No existe el archivo de analisis para tomar registros de nomina'''
+        SET gEstadoTomaRegistroPendienteNomina TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Ruta: %pRutaArchivoAnalisisRegistroNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: pRutaArchivoAnalisisRegistroNomina Visible: False ReadOnly: False Instance=> ExcelInstance
+    SET gExcelTomaRegistroNominaAbierto TO True
+    Excel.SetActiveWorksheet.ActivateWorksheetByName Instance: ExcelInstance Name: gNombreHojaRegistroNovedadesNomina
+    SET gBuscarRegistroPendienteNomina TO True
+    SET gFilaBusquedaRegistroNominaActual TO gFilaSiguienteBusquedaRegistroNomina
+    LOOP WHILE gBuscarRegistroPendienteNomina = True
+        File.WriteText File: gArchivoLog TextToWrite: $'''DEBUG toma registro | Hoja: %gNombreHojaRegistroNovedadesNomina% | FilaBusqueda: %gFilaBusquedaRegistroNominaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''A''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gIdEjecucionRegistroNominaActual
+        IF IsEmpty(gIdEjecucionRegistroNominaActual) THEN
+            SET gBuscarRegistroPendienteNomina TO False
+            SET gHayRegistroPendienteNomina TO False
+        ELSE
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''N''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gRequiereValidacionUsuarioRegistroNominaActual
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''M''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gEstadoPreparacionRegistroNominaActual
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''F''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gIdTerceroRegistroNominaActual
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''H''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gIdConceptoRegistroNominaActual
+            Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''I''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gValorRegistroNominaActual
+            IF gRequiereValidacionUsuarioRegistroNominaActual = $'''True''' THEN
+                Variables.IncreaseVariable Value: gFilaBusquedaRegistroNominaActual IncrementValue: 1
+            ELSE IF IsEmpty(gIdTerceroRegistroNominaActual) OR IsEmpty(gIdConceptoRegistroNominaActual) OR IsEmpty(gValorRegistroNominaActual) THEN
+                Variables.IncreaseVariable Value: gFilaBusquedaRegistroNominaActual IncrementValue: 1
+            ELSE
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''B''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gArchivoOrigenRegistroNominaActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''C''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gHojaOrigenRegistroNominaActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''D''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gFilaExcelOrigenRegistroNominaActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''E''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gNombreTerceroRegistroNominaActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''G''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gConceptoRegistroNominaActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''J''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gDiasRegistroNominaActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''K''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gObservacionesRegistroNominaActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''L''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gOrigenResolucionConceptoRegistroNominaActual
+                Excel.ReadFromExcel.ReadCell Instance: ExcelInstance StartColumn: $'''O''' StartRow: gFilaBusquedaRegistroNominaActual GetCellContentsMode: Excel.GetCellContentsMode.PlainText CellValue=> gMotivoValidacionRegistroNominaActual
+                SET gFilaControlRegistroNominaActual TO gFilaBusquedaRegistroNominaActual
+                SET gHayRegistroPendienteNomina TO True
+                SET gBuscarRegistroPendienteNomina TO False
+                SET gFilaSiguienteBusquedaRegistroNomina TO gFilaBusquedaRegistroNominaActual + 1
+            END
+        END
+    END
+    Excel.CloseExcel.Close Instance: ExcelInstance
+    SET gExcelTomaRegistroNominaAbierto TO False
+    IF gHayRegistroPendienteNomina = True THEN
+        SET gEstadoTomaRegistroPendienteNomina TO $'''OK'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''Registro pendiente seleccionado | Fila control: %gFilaControlRegistroNominaActual% | Tercero: %gIdTerceroRegistroNominaActual% | Concepto: %gIdConceptoRegistroNominaActual% | Valor: %gValorRegistroNominaActual%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    ELSE
+        SET gEstadoTomaRegistroPendienteNomina TO $'''SIN_PENDIENTES'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''No hay registros autorregistrables pendientes en registroNovedadesNomina''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    END
+END
+IF gEsErrorControladoTomaRegistroNomina = True THEN
+    ERROR => gMensajeError
+    IF gExcelTomaRegistroNominaAbierto = True THEN
+        Excel.CloseExcel.Close Instance: ExcelInstance
+        SET gExcelTomaRegistroNominaAbierto TO False
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControladoTomaRegistroNomina TO False
+END

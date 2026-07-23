@@ -1,2 +1,141 @@
 # SF_InitRegistroNomina
-# Placeholder inicial del pipeline de registro UI de nomina
+# Inicializa el pipeline de registro UI de nomina a partir de un archivo de analisis ya generado
+DateTime.GetCurrentDateTime.Local DateTimeFormat: DateTime.DateTimeFormat.DateAndTime CurrentDateTime=> gFechaHoraInicioRegistroNomina
+SET gFilaSiguienteBusquedaRegistroNomina TO 2
+SET gFilaBusquedaRegistroNominaActual TO 2
+SET gEstadoInicializacionRegistroNomina TO $'''INICIANDO'''
+SET gEstadoContextoRegistroNomina TO $'''NO_EJECUTADO'''
+SET gEstadoTomaRegistroPendienteNomina TO $'''NO_EJECUTADO'''
+SET gEstadoRegistroNomina TO $'''NO_EJECUTADO'''
+SET gMensajeError TO $''''''
+SET gEsErrorControladoRegistroNomina TO False
+SET gSesionAppAbiertaRegistroNomina TO False
+SET gAutenticadoRegistroNomina TO False
+SET gEmpresaSeleccionadaRegistroNomina TO False
+SET gPantallaRegistroNovedadesDisponible TO False
+SET gHayRegistroPendienteNomina TO False
+SET gTotalRegistrosPendientesNomina TO 0
+SET gFilaActualRegistroNomina TO 0
+Text.ConvertDateTimeToText.FromCustomDateTime DateTime: gFechaHoraInicioRegistroNomina CustomFormat: $'''yyyyMMdd_HHmmss''' Result=> gIdEjecucionRegistroNominaTmp
+SET gIdEjecucionRegistroNomina TO $'''REG_%gIdEjecucionRegistroNominaTmp%'''
+SET pRutaConfigJson TO $'''C:\\Dev\\Aspraco\\config\\config.json'''
+SET pRutaArchivoAnalisisRegistroNomina TO $''''''
+SET gNombreHojaRegistroNovedadesNomina TO $'''registroNovedadesNomina'''
+SET pUsaCredencialesSeguras TO True
+SET pCredentialAliasNomina TO $'''practiko'''
+SET pIdEmpresaNomina TO $''''''
+SET pNombreEmpresaNomina TO $''''''
+BLOCK Error_InitRegistroNomina
+ON BLOCK ERROR
+    SET gEstadoInicializacionRegistroNomina TO $'''ERROR'''
+    SET gEsErrorControladoRegistroNomina TO True
+    THROW ERROR
+END
+    IF (File.IfFile.DoesNotExist File: pRutaConfigJson) THEN
+        SET gMensajeError TO $'''No se encontro config.json para inicializar el flujo de registro nomina'''
+        SET gEstadoInicializacionRegistroNomina TO $'''ERROR'''
+        EXIT FUNCTION
+    END
+    File.ReadTextFromFile.ReadText File: pRutaConfigJson Encoding: File.TextFileEncoding.UTF8 Content=> gConfigJsonTextoRegistroNomina
+    Variables.ConvertJsonToCustomObject Json: gConfigJsonTextoRegistroNomina CustomObject=> gConfigJsonObjetoRegistroNomina
+    SET pUrlAppNomina TO gConfigJsonObjetoRegistroNomina.appNomina.url
+    SET pIdEmpresaNomina TO gConfigJsonObjetoRegistroNomina.empresaNomina.idEmpresa
+    SET pNombreEmpresaNomina TO gConfigJsonObjetoRegistroNomina.empresaNomina.nombreEmpresa
+    SET pDirectorioLogs TO gConfigJsonObjetoRegistroNomina.rutas.directorioLogs
+    SET pDirectorioSalidas TO gConfigJsonObjetoRegistroNomina.rutas.directorioSalidas
+    SET pDirectorioSalidasAnalisisNomina TO $'''%pDirectorioSalidas%\\analisis_nomina'''
+    SET pDirectorioSalidasRegistroNomina TO $'''%pDirectorioSalidas%\\registro_nomina'''
+    IF IsEmpty(pDirectorioLogs) THEN
+        SET gMensajeError TO $'''La configuracion del directorio de logs esta incompleta en config.json'''
+        SET gEstadoInicializacionRegistroNomina TO $'''ERROR'''
+        EXIT FUNCTION
+    END
+    IF (Folder.IfFolderExists.DoesNotExist Path: pDirectorioLogs) THEN
+        Folder.Create FolderPath: pDirectorioSalidas FolderName: $'''logs''' Folder=> gWorkingDirectoryRegistroNomina
+    END
+    SET gArchivoLog TO $'''%pDirectorioLogs%\\Log_%gIdEjecucionRegistroNomina%.txt'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Inicio ejecucion | Proceso: Registro Nomina | Id: %gIdEjecucionRegistroNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''Fecha inicio: %gFechaHoraInicioRegistroNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF IsEmpty(pUrlAppNomina) THEN
+        SET gMensajeError TO $'''No se definio la URL del aplicativo de nomina en config.json'''
+        SET gEstadoInicializacionRegistroNomina TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | URL aplicativo de nomina cargada | %pUrlAppNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Empresa configurada para nomina | Id: %pIdEmpresaNomina% | Nombre: %pNombreEmpresaNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF (Folder.IfFolderExists.DoesNotExist Path: pDirectorioSalidasAnalisisNomina) THEN
+        Folder.Create FolderPath: pDirectorioSalidas FolderName: $'''analisis_nomina''' Folder=> gWorkingDirectoryAnalisisNominaRegistro
+    END
+    IF (Folder.IfFolderExists.DoesNotExist Path: pDirectorioSalidasRegistroNomina) THEN
+        Folder.Create FolderPath: pDirectorioSalidas FolderName: $'''registro_nomina''' Folder=> gWorkingDirectorySalidaRegistroNomina
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Carpeta maestra de analisis nomina disponible | %pDirectorioSalidasAnalisisNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Carpeta auxiliar de registro nomina disponible | %pDirectorioSalidasRegistroNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    IF IsEmpty(pRutaArchivoAnalisisRegistroNomina) THEN
+        Folder.GetFiles Folder: pDirectorioSalidasAnalisisNomina FileFilter: $'''*.xlsx''' IncludeSubfolders: False FailOnAccessDenied: True SortBy1: Folder.SortBy.NoSort SortDescending1: False SortBy2: Folder.SortBy.NoSort SortDescending2: False SortBy3: Folder.SortBy.NoSort SortDescending3: False Files=> gListaArchivosAnalisisNominaRegistro
+        Variables.CreateNewList List=> gListaArchivosAnalisisNominaRegistroValidos
+        LOOP FOREACH CurrentItemArchivoAnalisisNomina IN gListaArchivosAnalisisNominaRegistro
+            Text.ParseText.ParseForFirstOccurrence Text: CurrentItemArchivoAnalisisNomina TextToFind: $'''~$''' StartingPosition: 0 IgnoreCase: False OccurrencePosition=> gPosicionTemporalArchivoAnalisisNomina
+            IF gPosicionTemporalArchivoAnalisisNomina >= 0 THEN
+                File.WriteText File: gArchivoLog TextToWrite: $'''Archivo temporal analisis descartado | %CurrentItemArchivoAnalisisNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            ELSE
+                Variables.AddItemToList Item: CurrentItemArchivoAnalisisNomina List: gListaArchivosAnalisisNominaRegistroValidos
+            END
+        END
+        SET gListaArchivosAnalisisNominaRegistro TO gListaArchivosAnalisisNominaRegistroValidos
+        SET gTotalArchivosAnalisisNominaRegistro TO gListaArchivosAnalisisNominaRegistro.Count
+        IF gTotalArchivosAnalisisNominaRegistro = 0 THEN
+            SET gMensajeError TO $'''No se encontro ningun archivo de analisis en la carpeta maestra analisis_nomina'''
+            SET gEstadoInicializacionRegistroNomina TO $'''ERROR'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Carpeta: %pDirectorioSalidasAnalisisNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        ELSE IF gTotalArchivosAnalisisNominaRegistro > 1 THEN
+            SET gMensajeError TO $'''Existe mas de un archivo de analisis en la carpeta maestra analisis_nomina. Se requiere definir pRutaArchivoAnalisisRegistroNomina de forma explicita'''
+            SET gEstadoInicializacionRegistroNomina TO $'''ERROR'''
+            File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Total archivos: %gTotalArchivosAnalisisNominaRegistro% | Carpeta: %pDirectorioSalidasAnalisisNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+            EXIT FUNCTION
+        ELSE
+            SET pRutaArchivoAnalisisRegistroNomina TO gListaArchivosAnalisisNominaRegistro[0]
+            File.WriteText File: gArchivoLog TextToWrite: $'''OK | Archivo maestro de analisis autodetectado | %pRutaArchivoAnalisisRegistroNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        END
+    END
+    IF (File.IfFile.DoesNotExist File: pRutaArchivoAnalisisRegistroNomina) THEN
+        SET gMensajeError TO $'''No existe el archivo de analisis indicado para registro nomina'''
+        SET gEstadoInicializacionRegistroNomina TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Ruta: %pRutaArchivoAnalisisRegistroNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        EXIT FUNCTION
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Archivo maestro de analisis encontrado | %pRutaArchivoAnalisisRegistroNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: pRutaArchivoAnalisisRegistroNomina Visible: False ReadOnly: True Instance=> ExcelInstance
+    SET gExcelRegistroNominaAbierto TO True
+    SET gExisteHojaRegistroNovedadesNomina TO False
+    Excel.GetAllWorksheets Instance: ExcelInstance Worksheets=> gHojasArchivoRegistroNomina
+    LOOP FOREACH CurrentSheetRegistroNomina IN gHojasArchivoRegistroNomina
+        IF CurrentSheetRegistroNomina = gNombreHojaRegistroNovedadesNomina THEN
+            SET gExisteHojaRegistroNovedadesNomina TO True
+        END
+    END
+    IF gExisteHojaRegistroNovedadesNomina = False THEN
+        SET gMensajeError TO $'''No existe la hoja registroNovedadesNomina en el archivo de analisis indicado'''
+        SET gEstadoInicializacionRegistroNomina TO $'''ERROR'''
+        File.WriteText File: gArchivoLog TextToWrite: $'''ERROR | %gMensajeError% | Archivo: %pRutaArchivoAnalisisRegistroNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+        Excel.CloseExcel.Close Instance: ExcelInstance
+        SET gExcelRegistroNominaAbierto TO False
+        EXIT FUNCTION
+    END
+    Excel.CloseExcel.Close Instance: ExcelInstance
+    SET gExcelRegistroNominaAbierto TO False
+    File.WriteText File: gArchivoLog TextToWrite: $'''OK | Hoja operativa encontrada | %gNombreHojaRegistroNovedadesNomina%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEstadoInicializacionRegistroNomina TO $'''OK'''
+    File.WriteText File: gArchivoLog TextToWrite: $'''Inicializacion registro nomina completada correctamente''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+END
+IF gEsErrorControladoRegistroNomina = True THEN
+    ERROR => gMensajeError
+    IF gExcelRegistroNominaAbierto = True THEN
+        Excel.CloseExcel.Close Instance: ExcelInstance
+        SET gExcelRegistroNominaAbierto TO False
+    END
+    File.WriteText File: gArchivoLog TextToWrite: $'''ERROR CONTROLADO | %gMensajeError%''' AppendNewLine: True IfFileExists: File.IfFileExists.Append Encoding: File.FileEncoding.UTF8
+    SET gEsErrorControladoRegistroNomina TO False
+END
